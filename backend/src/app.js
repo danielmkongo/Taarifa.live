@@ -59,7 +59,7 @@ export async function buildApp(fastify) {
   await fastify.register(fastifySensible);
   await fastify.register(fastifyHelmet, { global: true });
   await fastify.register(fastifyCors, {
-    origin: [config.appUrl, 'http://localhost:5173', 'http://localhost:4173'],
+    origin: [config.appUrl, 'http://localhost:8001', 'http://localhost:4173'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });

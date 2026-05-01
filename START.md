@@ -27,7 +27,7 @@ npm install
 npm run dev
 ```
 
-Opens on **http://localhost:5173**
+Opens on **http://localhost:8001**
 
 ---
 
@@ -38,7 +38,7 @@ cd backend
 node ../scripts/seed-admin.js admin@you.com yourpassword "Your Name"
 ```
 
-Then sign in at http://localhost:5173/login
+Then sign in at http://localhost:8001/login
 
 ---
 
