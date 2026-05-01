@@ -13,12 +13,19 @@ export default async function wsRoutes(fastify) {
       return;
     }
 
-    // If Redis is available, subscribe to pub/sub for real-time push
+    // Try Redis pub/sub — skip entirely if Redis is unavailable
     if (config.redis.url) {
       let sub;
       try {
         const { default: Redis } = await import('ioredis');
-        sub = new Redis(config.redis.url, { enableOfflineQueue: false });
+        sub = new Redis(config.redis.url, {
+          enableOfflineQueue: false,
+          lazyConnect: true,
+          connectTimeout: 3000,
+        });
+
+        // Test connection before subscribing
+        await sub.connect();
         await sub.subscribe('readings', 'alerts');
 
         sub.on('message', (channel, message) => {
@@ -31,21 +38,27 @@ export default async function wsRoutes(fastify) {
           } catch {}
         });
 
-        const cleanup = () => { sub.unsubscribe(); sub.quit(); };
+        const cleanup = () => {
+          sub.unsubscribe().catch(() => {});
+          sub.quit().catch(() => {});
+        };
         connection.socket.on('close', cleanup);
         connection.socket.on('error', cleanup);
         return;
       } catch {
-        sub?.quit?.();
+        // Redis unavailable — fall through to ping fallback
+        if (sub) sub.quit().catch(() => {});
       }
     }
 
-    // Fallback: keep socket alive with periodic pings (no push)
+    // Fallback: keepalive pings so the client knows the socket is alive
     const interval = setInterval(() => {
       if (connection.socket.readyState === 1) {
         connection.socket.send(JSON.stringify({ channel: 'ping' }));
       }
     }, 25_000);
+
     connection.socket.on('close', () => clearInterval(interval));
+    connection.socket.on('error', () => clearInterval(interval));
   });
 }
