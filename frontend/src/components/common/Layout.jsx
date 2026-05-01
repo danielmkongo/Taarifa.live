@@ -1,23 +1,84 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useState, useEffect } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.js';
 import { api } from '../../services/api.js';
+import { useQuery } from '@tanstack/react-query';
+import {
+  IcoHome, IcoCpu, IcoData, IcoMap, IcoBell, IcoFileChart,
+  IcoMonitor, IcoCalendar, IcoUsers, IcoSettings,
+  IcoSearch, IcoSun, IcoMoon, IcoBell2, IcoExt, IcoZap,
+} from '../ui/Icons.jsx';
+import { Btn } from '../ui/index.jsx';
 
-const navItems = [
-  { to: '/',          icon: '⊞',  key: 'dashboard' },
-  { to: '/devices',   icon: '📡', key: 'devices' },
-  { to: '/data',      icon: '📊', key: 'data' },
-  { to: '/map',       icon: '🗺', key: 'map' },
-  { to: '/alerts',    icon: '🔔', key: 'alerts' },
-  { to: '/exports',   icon: '📥', key: 'reports' },
-  { to: '/ecalendar', icon: '🖥', key: 'ecalendar' },
-  { to: '/users',     icon: '👥', key: 'users' },
-];
+const PAGE_TITLES = {
+  '/':            ['Monitoring', 'Overview'],
+  '/devices':     ['Monitoring', 'Devices'],
+  '/data':        ['Monitoring', 'Data Explorer'],
+  '/map':         ['Monitoring', 'Map'],
+  '/alerts':      ['Monitoring', 'Alerts'],
+  '/exports':     ['Monitoring', 'Reports'],
+  '/ecalendar':   ['Signage', 'E-Calendar'],
+  '/users':       ['Organisation', 'Members'],
+  '/settings':    ['Organisation', 'Settings'],
+};
 
 export default function Layout() {
-  const { t, i18n } = useTranslation();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [theme, setTheme] = useState(() => localStorage.getItem('taarifa-theme') || 'light');
+  const [workspace, setWorkspace] = useState(() =>
+    location.pathname === '/ecalendar' ? 'signage' : 'monitoring'
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('taarifa-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (location.pathname === '/ecalendar') setWorkspace('signage');
+    else if (workspace === 'signage' && location.pathname !== '/ecalendar') {
+      // keep signage workspace when on ecalendar
+    }
+  }, [location.pathname]);
+
+  const { data: alertData } = useQuery({
+    queryKey: ['alert-count'],
+    queryFn: () => api.listAlertEvents({ state: 'open', limit: 1 }),
+    refetchInterval: 60_000,
+  });
+  const { data: deviceData } = useQuery({
+    queryKey: ['device-count'],
+    queryFn: () => api.listDevices({ limit: 1 }),
+    refetchInterval: 120_000,
+  });
+
+  const alertCount = alertData?.total ?? 0;
+  const deviceCount = deviceData?.total ?? 0;
+
+  const monitoringNav = [
+    { to: '/',        label: 'Overview',      Icon: IcoHome },
+    { to: '/devices', label: 'Devices',       Icon: IcoCpu,       count: deviceCount || null },
+    { to: '/data',    label: 'Data Explorer', Icon: IcoData },
+    { to: '/map',     label: 'Map',           Icon: IcoMap },
+    { to: '/alerts',  label: 'Alerts',        Icon: IcoBell,      count: alertCount || null, alert: true },
+    { to: '/exports', label: 'Reports',       Icon: IcoFileChart },
+  ];
+
+  const signageNav = [
+    { to: '/ecalendar', label: 'E-Calendar', Icon: IcoCalendar },
+  ];
+
+  const adminNav = [
+    { to: '/users',    label: 'Members',  Icon: IcoUsers },
+    { to: '/settings', label: 'Settings', Icon: IcoSettings },
+  ];
+
+  const nav = workspace === 'monitoring' ? monitoringNav : signageNav;
+  const crumbs = PAGE_TITLES[location.pathname] || ['Monitoring', 'Overview'];
+  const initials = user?.fullName?.split(' ').map(s => s[0]).join('').slice(0, 2) || 'U';
+  const role = user?.role || 'viewer';
 
   async function handleLogout() {
     await api.logout({}).catch(() => {});
@@ -26,82 +87,102 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="app">
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-gray-900 text-white flex flex-col">
-        {/* Logo */}
-        <div className="px-6 py-5 border-b border-gray-800">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🌍</span>
-            <div>
-              <div className="font-bold text-lg leading-tight">Taarifa</div>
-              <div className="text-xs text-gray-400">.live</div>
-            </div>
-          </div>
+      <aside className="app__sidebar">
+        <div className="brand">
+          <div className="brand__mark">T</div>
+          <div className="brand__name">Taarifa</div>
+          <div className="brand__sub">v3.0</div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map(({ to, icon, key }) => (
-            <NavLink
-              key={key}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-primary-600 text-white'
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                }`
-              }
-            >
-              <span className="text-base">{icon}</span>
-              {t(`nav.${key}`)}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="workspace">
+          <button className="workspace__btn"
+            onClick={() => {
+              const next = workspace === 'monitoring' ? 'signage' : 'monitoring';
+              setWorkspace(next);
+              navigate(next === 'signage' ? '/ecalendar' : '/');
+            }}>
+            <div className={`workspace__icon workspace__icon--${workspace === 'monitoring' ? 'mon' : 'sig'}`}>
+              {workspace === 'monitoring' ? <IcoZap size={14} /> : <IcoMonitor size={14} />}
+            </div>
+            <div className="workspace__label">
+              <div>{workspace === 'monitoring' ? 'Monitoring' : 'Signage'}</div>
+              <small>{user?.fullName || 'Taarifa'}</small>
+            </div>
+          </button>
+        </div>
 
-        {/* Footer */}
-        <div className="px-4 py-4 border-t border-gray-800 space-y-3">
-          {/* Language toggle */}
-          <div className="flex gap-2">
-            {['en', 'sw'].map(lang => (
-              <button
-                key={lang}
-                onClick={() => i18n.changeLanguage(lang)}
-                className={`flex-1 py-1 rounded text-xs font-medium transition-colors ${
-                  i18n.language === lang
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
-              >
-                {lang === 'en' ? 'EN' : 'SW'}
-              </button>
+        <nav className="nav">
+          <div className="nav__section">
+            <div className="nav__heading">{workspace === 'monitoring' ? 'Monitoring' : 'Digital signage'}</div>
+            {nav.map(n => (
+              <a key={n.to}
+                className={`nav__item ${location.pathname === n.to ? 'active' : ''}`}
+                onClick={e => { e.preventDefault(); navigate(n.to); }}>
+                <n.Icon className="nav__icon" size={16} />
+                <span>{n.label}</span>
+                {n.count != null && n.count > 0 && (
+                  <span className={`nav__count ${n.alert ? 'nav__count--alert' : ''}`}>{n.count}</span>
+                )}
+              </a>
             ))}
           </div>
 
-          {/* User info */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-sm font-bold">
-              {user?.fullName?.[0] || '?'}
+          {(role === 'admin' || role === 'org_admin' || role === 'super_admin') && (
+            <div className="nav__section">
+              <div className="nav__heading">Organisation</div>
+              {adminNav.map(n => (
+                <a key={n.to}
+                  className={`nav__item ${location.pathname === n.to ? 'active' : ''}`}
+                  onClick={e => { e.preventDefault(); navigate(n.to); }}>
+                  <n.Icon className="nav__icon" size={16} />
+                  <span>{n.label}</span>
+                </a>
+              ))}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{user?.fullName}</div>
-              <div className="text-xs text-gray-400 truncate capitalize">{user?.role}</div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-gray-400 hover:text-white text-sm transition-colors"
-              title="Sign out"
-            >
-              ⇥
-            </button>
+          )}
+        </nav>
+
+        <div className="user">
+          <div className="avatar">{initials}</div>
+          <div className="user__info">
+            <div className="user__name">{user?.fullName || 'User'}</div>
+            <div className="user__role">{role.replace('_', ' ')}</div>
           </div>
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={handleLogout} title="Sign out">
+            <IcoExt size={13} />
+          </button>
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      {/* Topbar */}
+      <header className="app__topbar">
+        <div className="topbar">
+          <div className="topbar__crumbs">
+            {crumbs.map((c, i) => (
+              <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {i > 0 && <span className="topbar__crumb-sep">/</span>}
+                {i === crumbs.length - 1 ? <strong>{c}</strong> : <span>{c}</span>}
+              </span>
+            ))}
+          </div>
+          <div className="search">
+            <IcoSearch size={13} />
+            <input placeholder="Search devices, alerts…" />
+            <span className="kbd">⌘K</span>
+          </div>
+          <div className="topbar__actions">
+            <Btn kind="ghost" size="sm" icon={theme === 'dark' ? IcoSun : IcoMoon}
+              onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+              title="Toggle theme" />
+            <Btn kind="ghost" size="sm" icon={IcoBell2} title="Notifications" />
+          </div>
+        </div>
+      </header>
+
+      {/* Main */}
+      <main className="app__main">
         <Outlet />
       </main>
     </div>

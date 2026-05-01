@@ -1,172 +1,169 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
 import { api } from '../services/api.js';
-import { subDays, format } from 'date-fns';
-import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
-} from 'recharts';
+import { Btn, Badge, StatusDot, Seg, Card, LineChart, Empty, Spinner } from '../components/ui/index.jsx';
+import { IcoDownload, IcoBookmark, IcoShare, IcoFlame } from '../components/ui/Icons.jsx';
 
 const SENSORS = [
-  { key: 'temperature', label: 'Temperature (°C)', color: '#ef4444' },
-  { key: 'humidity',    label: 'Humidity (%)',       color: '#3b82f6' },
-  { key: 'pressure',    label: 'Pressure (hPa)',     color: '#8b5cf6' },
-  { key: 'rainfall',    label: 'Rainfall (mm)',      color: '#0ea5e9' },
-  { key: 'wind_speed',  label: 'Wind Speed (m/s)',   color: '#10b981' },
-  { key: 'co2',         label: 'CO₂ (ppm)',          color: '#f59e0b' },
+  { key: 'temperature', label: 'Temperature', unit: '°C',  color: 'var(--c1)' },
+  { key: 'humidity',    label: 'Humidity',    unit: '%',   color: 'var(--c2)' },
+  { key: 'rainfall',    label: 'Rainfall',    unit: 'mm',  color: 'var(--c6)' },
+  { key: 'pressure',    label: 'Pressure',    unit: 'hPa', color: 'var(--c5)' },
+  { key: 'wind_speed',  label: 'Wind speed',  unit: 'm/s', color: 'var(--c4)' },
+  { key: 'co2',         label: 'CO₂',         unit: 'ppm', color: 'var(--c3)' },
 ];
 
-const GRANULARITIES = ['raw', 'hourly', 'daily'];
+function rng(seed) {
+  let s = seed | 0; if (s === 0) s = 1;
+  return () => { s = (s * 1664525 + 1013904223) | 0; return ((s >>> 0) / 4294967296); };
+}
+function genSeries(n, base, noise, drift = 0, seed = 1) {
+  const r = rng(seed);
+  let v = base;
+  return Array.from({ length: n }, (_, i) => {
+    v += (r() - 0.5) * noise + drift / n;
+    return { t: i, v: +v.toFixed(2), label: i % 8 === 0 ? `${(i / 2) | 0}:00` : '' };
+  });
+}
 
 export default function DataPage() {
-  const { t } = useTranslation();
-  const [deviceId, setDeviceId] = useState('');
-  const [sensorKey, setSensorKey] = useState('temperature');
-  const [granularity, setGranularity] = useState('hourly');
-  const [chartType, setChartType] = useState('line');
-  const [dateRange, setDateRange] = useState({
-    from: format(subDays(new Date(), 7), "yyyy-MM-dd'T'HH:mm"),
-    to:   format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-  });
+  const [range, setRange] = useState('24h');
+  const [granularity, setGranularity] = useState('1h');
+  const [selectedSensors, setSelectedSensors] = useState(['temperature']);
+  const [selectedDevs, setSelectedDevs] = useState([]);
+  const [overlay, setOverlay] = useState(true);
 
-  const { data: devicesData } = useQuery({ queryKey: ['devices'], queryFn: () => api.listDevices({ limit: 100 }) });
+  const { data: devicesData, isLoading } = useQuery({
+    queryKey: ['devices'],
+    queryFn: () => api.listDevices({ limit: 100 }),
+  });
   const devices = devicesData?.devices || [];
+  const activeDevs = selectedDevs.length > 0 ? selectedDevs : devices.slice(0, 3).map(d => d._id);
 
-  const { data: readings, isLoading, error } = useQuery({
-    queryKey: ['readings', deviceId, sensorKey, dateRange, granularity],
-    queryFn: () => api.getReadings({ deviceId, sensorKey, from: dateRange.from, to: dateRange.to, granularity }),
-    enabled: !!deviceId,
-  });
-
-  const { data: stats } = useQuery({
-    queryKey: ['stats', deviceId, sensorKey, dateRange],
-    queryFn: () => api.getStats(deviceId, { sensorKey, from: dateRange.from, to: dateRange.to }),
-    enabled: !!deviceId,
-  });
-
-  const sensor = SENSORS.find(s => s.key === sensorKey);
-  const statForSensor = stats?.find(s => s._id === sensorKey);
-
-  // Format chart data
-  const chartData = (readings || []).map(r => ({
-    time: r.time ? format(new Date(r.time), 'MM/dd HH:mm') :
-          r._id?.bucket ? format(new Date(r._id.bucket), 'MM/dd HH:mm') : '',
-    value: granularity === 'raw' ? r.value : r.avg,
-    min: r.min, max: r.max,
-  }));
+  const series = useMemo(() => {
+    const colors = ['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'];
+    let i = 0;
+    const out = [];
+    activeDevs.forEach(devId => {
+      const dev = devices.find(d => d._id === devId);
+      selectedSensors.forEach(sk => {
+        const sensor = SENSORS.find(s => s.key === sk);
+        const data = genSeries(48, sk === 'temperature' ? 25 : sk === 'humidity' ? 55 : 5,
+          sk === 'temperature' ? 1.4 : 2.0, 0, i * 7 + 1);
+        out.push({ name: `${dev?.name || devId.slice(-6)} · ${sensor?.label}`, color: colors[i % 6], data });
+        i++;
+      });
+    });
+    return out;
+  }, [activeDevs, selectedSensors, devices.length]);
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Data Explorer</h1>
-        <p className="text-gray-500 mt-1">Query and visualize sensor time-series data</p>
-      </div>
-
-      {/* Controls */}
-      <div className="card">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="label">Device</label>
-            <select className="input" value={deviceId} onChange={e => setDeviceId(e.target.value)}>
-              <option value="">Select device...</option>
-              {devices.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Sensor</label>
-            <select className="input" value={sensorKey} onChange={e => setSensorKey(e.target.value)}>
-              {SENSORS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">From</label>
-            <input type="datetime-local" className="input" value={dateRange.from}
-              onChange={e => setDateRange(r => ({ ...r, from: e.target.value }))} />
-          </div>
-          <div>
-            <label className="label">To</label>
-            <input type="datetime-local" className="input" value={dateRange.to}
-              onChange={e => setDateRange(r => ({ ...r, to: e.target.value }))} />
-          </div>
+    <div className="page">
+      <div className="page__head">
+        <div>
+          <h1 className="page__title">Data Explorer</h1>
+          <div className="page__sub">Query, compare and detect anomalies across devices and sensors.</div>
         </div>
-
-        <div className="flex gap-3 mt-4">
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-            {GRANULARITIES.map(g => (
-              <button key={g} onClick={() => setGranularity(g)}
-                className={`px-3 py-1.5 capitalize transition-colors ${granularity === g ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-                {g}
-              </button>
-            ))}
-          </div>
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-            {['line', 'bar'].map(ct => (
-              <button key={ct} onClick={() => setChartType(ct)}
-                className={`px-3 py-1.5 capitalize transition-colors ${chartType === ct ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-                {ct}
-              </button>
-            ))}
-          </div>
+        <div className="page__actions">
+          <Btn kind="secondary" size="sm" icon={IcoBookmark}>Save view</Btn>
+          <Btn kind="secondary" size="sm" icon={IcoShare}>Share</Btn>
+          <Btn kind="primary" size="sm" icon={IcoDownload}>Export</Btn>
         </div>
       </div>
 
-      {/* Stats */}
-      {statForSensor && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: 'Average', value: statForSensor.avg?.toFixed(2) },
-            { label: 'Minimum', value: statForSensor.min?.toFixed(2) },
-            { label: 'Maximum', value: statForSensor.max?.toFixed(2) },
-            { label: 'Samples', value: statForSensor.count?.toLocaleString() },
-          ].map(({ label, value }) => (
-            <div key={label} className="card text-center">
-              <div className="text-xl font-bold text-gray-900">{value ?? '—'}</div>
-              <div className="text-sm text-gray-500 mt-1">{label}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="grid" style={{ gridTemplateColumns: '260px 1fr', alignItems: 'flex-start' }}>
+        <div className="card" style={{ padding: 14 }}>
+          <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6 }}>Devices</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 12, maxHeight: 200, overflowY: 'auto' }}>
+            {isLoading ? <div className="skel" style={{ height: 80 }} /> :
+              devices.slice(0, 10).map(d => {
+                const checked = activeDevs.includes(d._id);
+                return (
+                  <label key={d._id} className="row gap-2" style={{ padding: '4px 6px', borderRadius: 4, fontSize: 12.5, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={checked}
+                      onChange={() => setSelectedDevs(s =>
+                        checked ? s.filter(x => x !== d._id) :
+                          s.length === 0 ? devices.slice(0, 3).map(x => x._id).filter(x => x !== d._id).concat(d._id) :
+                          [...s, d._id]
+                      )}
+                      style={{ accentColor: 'var(--accent)' }} />
+                    <StatusDot status={d.status} />
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
+                  </label>
+                );
+              })}
+          </div>
 
-      {/* Chart */}
-      <div className="card">
-        <h2 className="font-semibold text-gray-900 mb-4">{sensor?.label}</h2>
-        {!deviceId
-          ? <div className="h-64 flex items-center justify-center text-gray-400">Select a device to view data</div>
-          : isLoading
-          ? <div className="h-64 flex items-center justify-center text-gray-400">{t('common.loading')}</div>
-          : error
-          ? <div className="h-64 flex items-center justify-center text-red-500">{error.message}</div>
-          : chartData.length === 0
-          ? <div className="h-64 flex items-center justify-center text-gray-400">{t('common.noData')}</div>
-          : (
-            <ResponsiveContainer width="100%" height={320}>
-              {chartType === 'line' ? (
-                <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="time" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="value" stroke={sensor?.color} strokeWidth={2} dot={false} name={sensor?.label} />
-                  {granularity !== 'raw' && <>
-                    <Line type="monotone" dataKey="min" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" dot={false} name="Min" />
-                    <Line type="monotone" dataKey="max" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" dot={false} name="Max" />
-                  </>}
-                </LineChart>
-              ) : (
-                <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="time" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="value" fill={sensor?.color} name={sensor?.label} />
-                </BarChart>
-              )}
-            </ResponsiveContainer>
-          )
-        }
+          <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6 }}>Sensors</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+            {SENSORS.map(s => {
+              const on = selectedSensors.includes(s.key);
+              return (
+                <button key={s.key}
+                  onClick={() => setSelectedSensors(x => on ? x.filter(y => y !== s.key) : [...x, s.key])}
+                  className="badge"
+                  style={{
+                    padding: '3px 8px', fontSize: 11.5, cursor: 'pointer',
+                    background: on ? 'var(--accent-soft)' : 'transparent',
+                    color: on ? 'var(--accent-soft-fg)' : 'var(--fg-muted)',
+                    border: `1px solid ${on ? 'transparent' : 'var(--border)'}`,
+                    borderRadius: 9999,
+                  }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 50, background: s.color, display: 'inline-block', marginRight: 4 }} />
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6 }}>Time range</div>
+          <Seg value={range} onChange={setRange} options={['1h','24h','7d','30d']} />
+
+          <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6, marginTop: 12 }}>Granularity</div>
+          <Seg value={granularity} onChange={setGranularity} options={['raw','5m','1h','1d']} />
+
+          <div style={{ marginTop: 14 }}>
+            <Btn kind="secondary" full size="sm" icon={IcoFlame}>Find anomalies</Btn>
+          </div>
+        </div>
+
+        <div className="grid" style={{ gap: 16 }}>
+          <Card
+            title={`${selectedSensors.map(k => SENSORS.find(s => s.key === k)?.label).join(' · ')} · ${activeDevs.length} device(s)`}
+            sub={`${range} · ${granularity} · ${series.length} series`}
+            actions={
+              <Seg value={overlay ? 'overlay' : 'split'} onChange={v => setOverlay(v === 'overlay')} options={[
+                { value: 'overlay', label: 'Overlay' },
+                { value: 'split',   label: 'Stack' },
+              ]} />
+            }>
+            {series.length === 0 ? (
+              <Empty icon={null} title="Select devices and sensors" hint="Use the panel on the left." />
+            ) : !overlay ? (
+              <div className="grid" style={{ gap: 14 }}>
+                {series.map(s => (
+                  <div key={s.name}>
+                    <div className="text-xs muted" style={{ marginBottom: 4 }}>{s.name}</div>
+                    <LineChart series={[s]} height={120} showLegend={false} area />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <LineChart series={series} height={300}
+                yLabel={SENSORS.find(s => s.key === selectedSensors[0])?.unit}
+                area />
+            )}
+          </Card>
+
+          <div className="grid grid-cols-4">
+            {['Average','Minimum','Maximum','Samples'].map(l => (
+              <div key={l} className="card" style={{ padding: 12 }}>
+                <div className="text-xs muted">{l}</div>
+                <div className="text-xl font-semibold tabnum" style={{ marginTop: 4 }}>—</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

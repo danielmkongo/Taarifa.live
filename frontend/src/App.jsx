@@ -11,6 +11,7 @@ import AlertsPage from './pages/AlertsPage.jsx';
 import ExportsPage from './pages/ExportsPage.jsx';
 import ECalendarPage from './pages/ECalendarPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
 
 function RequireAuth({ children }) {
   const token = useAuthStore((s) => s.token);
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="exports"    element={<ExportsPage />} />
           <Route path="ecalendar"  element={<ECalendarPage />} />
           <Route path="users"      element={<UsersPage />} />
+          <Route path="settings"   element={<SettingsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

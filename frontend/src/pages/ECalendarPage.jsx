@@ -1,251 +1,225 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
 import { api } from '../services/api.js';
 import { format } from 'date-fns';
+import { Btn, Badge, StatusDot, Seg, Card, Empty } from '../components/ui/index.jsx';
+import { IcoPlus, IcoCalendar, IcoMonitor, IcoMore, IcoFilm, IcoArrowRight, IcoX, IcoCheck } from '../components/ui/Icons.jsx';
 
-const CONTENT_TYPES = ['event', 'news', 'announcement', 'advertisement'];
-const TYPE_COLORS = {
-  event: 'badge-blue', news: 'badge-green',
-  announcement: 'badge-yellow', advertisement: 'badge-gray',
-};
-
-function ContentModal({ groups, onClose, onSaved }) {
-  const [form, setForm] = useState({ type: 'announcement', title: '', body: '', mediaUrl: '', priority: 5 });
+function ContentModal({ onClose, onSaved }) {
+  const [form, setForm] = useState({ title: '', contentType: 'announcement', body: '', imageUrl: '', durationS: 30 });
   const [error, setError] = useState('');
 
   async function submit(e) {
     e.preventDefault();
     setError('');
     try {
-      await api.createEcalContent(form);
+      await api.createSignageContent(form);
       onSaved();
       onClose();
     } catch (err) { setError(err.message); }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-        <h3 className="font-bold text-lg mb-4">Create Content</h3>
-        {error && <div className="mb-3 p-2 bg-red-50 text-red-700 text-sm rounded">{error}</div>}
-        <form onSubmit={submit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="label">Type</label>
-              <select className="input" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-                {CONTENT_TYPES.map(t => <option key={t} className="capitalize">{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label">Priority (1=high, 10=low)</label>
-              <input type="number" min={1} max={10} className="input" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: parseInt(e.target.value) }))} />
-            </div>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">New content</div>
+          <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
+        </div>
+        <div className="modal__body">
+          {error && <div className="error-banner">{error}</div>}
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Title *</label>
+            <input required className="input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
           </div>
-          <div><label className="label">Title *</label><input required className="input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
-          <div><label className="label">Body</label><textarea className="input" rows={3} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} /></div>
-          <div><label className="label">Media URL</label><input type="url" className="input" value={form.mediaUrl} onChange={e => setForm(f => ({ ...f, mediaUrl: e.target.value }))} /></div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button type="submit" className="btn-primary flex-1 justify-center">Create</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function CampaignModal({ content, groups, onClose, onSaved }) {
-  const [form, setForm] = useState({
-    contentId: content?._id || '',
-    groupId: '',
-    startsAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-    endsAt: format(new Date(Date.now() + 7 * 86400000), "yyyy-MM-dd'T'HH:mm"),
-    displayDurationS: 30,
-  });
-  const [error, setError] = useState('');
-
-  async function submit(e) {
-    e.preventDefault();
-    setError('');
-    try {
-      await api.createEcalCampaign(form);
-      onSaved();
-      onClose();
-    } catch (err) { setError(err.message); }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-        <h3 className="font-bold text-lg mb-4">Schedule Campaign</h3>
-        {error && <div className="mb-3 p-2 bg-red-50 text-red-700 text-sm rounded">{error}</div>}
-        <form onSubmit={submit} className="space-y-3">
-          <div>
-            <label className="label">Device Group *</label>
-            <select required className="input" value={form.groupId} onChange={e => setForm(f => ({ ...f, groupId: e.target.value }))}>
-              <option value="">Select group...</option>
-              {groups?.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Type</label>
+            <select className="select" value={form.contentType} onChange={e => setForm(f => ({ ...f, contentType: e.target.value }))}>
+              {['announcement','event','news','advertisement'].map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div><label className="label">Start</label><input required type="datetime-local" className="input" value={form.startsAt} onChange={e => setForm(f => ({ ...f, startsAt: e.target.value }))} /></div>
-            <div><label className="label">End</label><input required type="datetime-local" className="input" value={form.endsAt} onChange={e => setForm(f => ({ ...f, endsAt: e.target.value }))} /></div>
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Body text</label>
+            <textarea className="textarea" value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} rows={3} />
           </div>
-          <div><label className="label">Display Duration (seconds)</label><input type="number" min={5} className="input" value={form.displayDurationS} onChange={e => setForm(f => ({ ...f, displayDurationS: parseInt(e.target.value) }))} /></div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button type="submit" className="btn-primary flex-1 justify-center">Schedule</button>
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Image URL</label>
+            <input className="input" value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="https://…" />
           </div>
-        </form>
+          <div className="field">
+            <label className="field__label">Duration (seconds)</label>
+            <input type="number" className="input" style={{ width: 120 }} value={form.durationS} onChange={e => setForm(f => ({ ...f, durationS: parseInt(e.target.value) }))} />
+          </div>
+        </div>
+        <div className="modal__foot">
+          <Btn kind="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn kind="primary" icon={IcoCheck} onClick={submit}>Create</Btn>
+        </div>
       </div>
     </div>
   );
 }
 
 export default function ECalendarPage() {
-  const { t } = useTranslation();
   const qc = useQueryClient();
-  const [tab, setTab] = useState('content');
-  const [showContent, setShowContent] = useState(false);
-  const [campaignFor, setCampaignFor] = useState(null);
+  const [tab, setTab] = useState('overview');
+  const [showModal, setShowModal] = useState(false);
 
-  const { data: content } = useQuery({ queryKey: ['ecal-content'], queryFn: () => api.listEcalContent({}) });
-  const { data: campaigns } = useQuery({ queryKey: ['ecal-campaigns'], queryFn: api.listEcalCampaigns });
-  const { data: groups } = useQuery({ queryKey: ['ecal-groups'], queryFn: api.listEcalGroups });
-  const { data: devices } = useQuery({ queryKey: ['ecal-devices'], queryFn: api.listEcalDevices });
+  const { data: contentsData } = useQuery({ queryKey: ['signage-contents'], queryFn: () => api.listSignageContents({ limit: 50 }) });
+  const { data: schedulesData } = useQuery({ queryKey: ['signage-schedules'], queryFn: () => api.listSignageSchedules({ limit: 50 }) });
+  const { data: screensData }   = useQuery({ queryKey: ['signage-screens'],   queryFn: () => api.listSignageScreens({ limit: 50 }) });
 
-  const delContent = useMutation({ mutationFn: api.deleteEcalContent, onSuccess: () => qc.invalidateQueries(['ecal-content']) });
-  const delCampaign = useMutation({ mutationFn: api.deleteEcalCampaign, onSuccess: () => qc.invalidateQueries(['ecal-campaigns']) });
+  const contents  = contentsData?.items  || contentsData || [];
+  const schedules = schedulesData?.items || schedulesData || [];
+  const screens   = screensData?.items   || screensData   || [];
+
+  const liveCount = schedules.filter(s => s.status === 'live' || s.isActive).length;
+  const onlineScreens = screens.filter(s => s.status === 'online').length;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="page">
+      <div className="page__head">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('nav.ecalendar')}</h1>
-          <p className="text-gray-500 mt-1">Manage digital display content and campaigns</p>
+          <h1 className="page__title">Signage</h1>
+          <div className="page__sub">Plan, schedule and broadcast content to public displays.</div>
         </div>
-        {tab === 'content' && <button onClick={() => setShowContent(true)} className="btn-primary">Add Content</button>}
+        <div className="page__actions">
+          <Btn kind="secondary" size="sm" icon={IcoCalendar}>Schedule</Btn>
+          <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowModal(true)}>New content</Btn>
+        </div>
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Display Devices', value: devices?.length ?? 0, icon: '🖥' },
-          { label: 'Device Groups', value: groups?.length ?? 0, icon: '📁' },
-          { label: 'Active Campaigns', value: campaigns?.filter(c => new Date(c.endsAt) > new Date()).length ?? 0, icon: '📢' },
-        ].map(s => (
-          <div key={s.label} className="card flex items-center gap-3">
-            <span className="text-2xl">{s.icon}</span>
-            <div>
-              <div className="text-xl font-bold text-gray-900">{s.value}</div>
-              <div className="text-sm text-gray-500">{s.label}</div>
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-4" style={{ marginBottom: 16 }}>
+        <KpiTile label="Live now"         value={liveCount} sub="campaigns broadcasting" />
+        <KpiTile label="Screens online"   value={`${onlineScreens}/${screens.length}`} sub="active displays" />
+        <KpiTile label="Content items"    value={contents.length || 0} sub="in library" />
+        <KpiTile label="Scheduled"        value={schedules.length || 0} sub="upcoming" />
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200">
-        {[['content', 'Content Library'], ['campaigns', 'Campaigns'], ['devices', 'Display Devices']].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === id ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}>
-            {label}
-          </button>
-        ))}
+      <div className="row gap-3" style={{ marginBottom: 12 }}>
+        <Seg value={tab} onChange={setTab} options={[
+          { value: 'overview',  label: 'Overview' },
+          { value: 'content',   label: 'Content library' },
+          { value: 'screens',   label: 'Screens' },
+        ]} />
       </div>
 
-      {tab === 'content' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {!content?.length
-            ? <div className="col-span-3 card text-center text-gray-400 py-12">No content yet</div>
-            : content.map(c => (
-              <div key={c._id} className="card hover:shadow-md transition-shadow">
-                {c.mediaUrl && (
-                  <div className="mb-3 rounded-lg overflow-hidden bg-gray-100 h-32 flex items-center justify-center">
-                    <img src={c.mediaUrl} alt={c.title} className="w-full h-full object-cover" onError={e => { e.target.style.display='none'; }} />
+      {tab === 'overview' && (
+        <div className="grid" style={{ gridTemplateColumns: '1.4fr 1fr' }}>
+          <Card title="Now broadcasting" sub="Active campaigns"
+            actions={<Btn kind="ghost" size="sm" iconRight={IcoArrowRight}>All campaigns</Btn>}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {schedules.length === 0 ? (
+                <Empty icon={IcoFilm} title="No active campaigns" hint="Schedule content to get started." />
+              ) : schedules.slice(0, 5).map((s, i) => (
+                <div key={s._id || i} className="row gap-3" style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ width: 60, height: 36, background: 'var(--bg-subtle)', borderRadius: 6, display: 'grid', placeItems: 'center', color: 'var(--fg-subtle)', flexShrink: 0 }}>
+                    <IcoFilm size={16} />
                   </div>
-                )}
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <span className={`badge ${TYPE_COLORS[c.type]}`}>{c.type}</span>
-                  <span className="text-xs text-gray-400">Priority {c.priority}</span>
-                </div>
-                <h3 className="font-semibold text-gray-900">{c.title}</h3>
-                {c.body && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{c.body}</p>}
-                <div className="flex gap-2 mt-3">
-                  <button onClick={() => setCampaignFor(c)} className="btn-primary text-xs py-1">Schedule</button>
-                  <button onClick={() => { if (confirm('Delete?')) delContent.mutate(c._id); }} className="btn-secondary text-xs py-1">Delete</button>
-                </div>
-              </div>
-            ))
-          }
-        </div>
-      )}
-
-      {tab === 'campaigns' && (
-        <div className="space-y-3">
-          {!campaigns?.length
-            ? <div className="card text-center text-gray-400 py-12">No campaigns scheduled</div>
-            : campaigns.map(c => {
-              const now = new Date();
-              const active = new Date(c.startsAt) <= now && new Date(c.endsAt) >= now;
-              return (
-                <div key={c._id} className="card flex items-center gap-4">
-                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${active ? 'bg-green-500' : new Date(c.endsAt) < now ? 'bg-gray-400' : 'bg-yellow-500'}`} />
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">Group: {groups?.find(g => g._id === c.groupId)?.name || c.groupId}</div>
-                    <div className="text-sm text-gray-500">
-                      {format(new Date(c.startsAt), 'MMM d, HH:mm')} → {format(new Date(c.endsAt), 'MMM d, HH:mm')} · {c.displayDurationS}s each
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="row gap-2">
+                      <span style={{ fontWeight: 500 }}>{s.title || s.name || 'Campaign'}</span>
+                      <Badge kind="ok" dot="ok">Live</Badge>
+                    </div>
+                    <div className="text-xs muted" style={{ marginTop: 3 }}>
+                      {s.startsAt ? format(new Date(s.startsAt), 'MMM d') : 'Now'} → {s.endsAt ? format(new Date(s.endsAt), 'MMM d') : 'Ongoing'}
                     </div>
                   </div>
-                  <span className={`badge ${active ? 'badge-green' : new Date(c.endsAt) < now ? 'badge-gray' : 'badge-yellow'}`}>
-                    {active ? 'Active' : new Date(c.endsAt) < now ? 'Ended' : 'Scheduled'}
-                  </span>
-                  <button onClick={() => { if (confirm('Remove campaign?')) delCampaign.mutate(c._id); }} className="text-xs text-red-600 hover:underline">Remove</button>
+                  <Btn kind="ghost" size="sm" icon={IcoMore} />
                 </div>
-              );
-            })
-          }
+              ))}
+            </div>
+          </Card>
+
+          <Card title="Screens" sub="Real-time status">
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {screens.length === 0 ? (
+                <Empty icon={IcoMonitor} title="No screens" hint="Pair a display to get started." />
+              ) : screens.slice(0, 8).map((s, i) => (
+                <div key={s._id || i} className="row gap-2" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <StatusDot status={s.status || 'offline'} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{s.name}</div>
+                    <div className="text-xs muted">{s.resolution || '1920×1080'}</div>
+                  </div>
+                  <span className="text-xs subtle mono">
+                    {s.lastSeenAt ? format(new Date(s.lastSeenAt), 'HH:mm') : '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       )}
 
-      {tab === 'devices' && (
-        <div className="card p-0 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>{['Name','Location','Group','Status','Last Seen'].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>)}</tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {!devices?.length
-                ? <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No display devices</td></tr>
-                : devices.map(d => (
-                  <tr key={d._id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{d.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{d.location || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{groups?.find(g => g._id === d.groupId)?.name || '—'}</td>
-                    <td className="px-4 py-3"><span className={`badge ${d.status === 'online' ? 'badge-green' : 'badge-gray'}`}>{d.status}</span></td>
-                    <td className="px-4 py-3 text-gray-500">{d.lastSeenAt ? format(new Date(d.lastSeenAt), 'MMM d, HH:mm') : 'Never'}</td>
-                  </tr>
-                ))
-              }
+      {tab === 'content' && (
+        <div className="grid grid-cols-4">
+          {contents.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <Card><Empty icon={IcoFilm} title="No content yet" hint="Create your first content item." action={<Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowModal(true)}>New content</Btn>} /></Card>
+            </div>
+          ) : contents.map((c, i) => {
+            const hues = [200, 155, 60, 22, 130, 280, 240, 320];
+            const hue = hues[i % hues.length];
+            return (
+              <div key={c._id || i} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ aspectRatio: '16/9', background: `linear-gradient(135deg, oklch(0.86 0.12 ${hue}), oklch(0.64 0.18 ${(hue + 40) % 360}))`, position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: 8, left: 8 }}>
+                    <Badge kind="neutral">{c.contentType}</Badge>
+                  </div>
+                  <div style={{ position: 'absolute', bottom: 10, left: 10, right: 10, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{c.title}</div>
+                    {c.body && <div style={{ fontSize: 11.5, opacity: 0.9 }}>{c.body.slice(0, 60)}</div>}
+                  </div>
+                </div>
+                <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="text-xs muted">{c.durationS ? `${c.durationS}s` : '—'}</span>
+                  <Btn kind="ghost" size="sm" icon={IcoMore} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === 'screens' && (
+        <Card padding={false}>
+          <table className="table">
+            <thead><tr><th></th><th>Screen</th><th>Resolution</th><th>Status</th><th>Last seen</th><th></th></tr></thead>
+            <tbody>
+              {screens.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>No screens registered</td></tr>
+              ) : screens.map(s => (
+                <tr key={s._id}>
+                  <td><StatusDot status={s.status || 'offline'} /></td>
+                  <td><span style={{ fontWeight: 500 }}>{s.name}</span></td>
+                  <td className="mono text-xs">{s.resolution || '1920×1080'}</td>
+                  <td><Badge kind={s.status === 'online' ? 'ok' : 'neutral'}>{s.status || 'offline'}</Badge></td>
+                  <td className="muted text-xs">{s.lastSeenAt ? format(new Date(s.lastSeenAt), 'MMM d, HH:mm') : '—'}</td>
+                  <td><Btn kind="ghost" size="sm" icon={IcoMore} /></td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
-      {showContent && (
-        <ContentModal groups={groups} onClose={() => setShowContent(false)} onSaved={() => qc.invalidateQueries(['ecal-content'])} />
-      )}
-      {campaignFor && (
-        <CampaignModal
-          content={campaignFor}
-          groups={groups}
-          onClose={() => setCampaignFor(null)}
-          onSaved={() => { qc.invalidateQueries(['ecal-campaigns']); setCampaignFor(null); }}
+      {showModal && (
+        <ContentModal
+          onClose={() => setShowModal(false)}
+          onSaved={() => qc.invalidateQueries(['signage-contents'])}
         />
       )}
+    </div>
+  );
+}
+
+function KpiTile({ label, value, sub }) {
+  return (
+    <div className="card" style={{ padding: 14 }}>
+      <div className="text-xs muted">{label}</div>
+      <div className="text-2xl font-semibold tabnum tracking-tight" style={{ marginTop: 4 }}>{value ?? '—'}</div>
+      {sub && <div className="text-xs subtle">{sub}</div>}
     </div>
   );
 }

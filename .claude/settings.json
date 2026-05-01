@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(if \\(-not $?\\) { \"Directory is empty or does not exist\" })"
+      "PowerShell(if \\(-not $?\\) { \"Directory is empty or does not exist\" })",
+      "Bash(dir \"C:\\\\Users\\\\danie\\\\Downloads\\\\Taarifa\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\danie\\\\Taarifa.live\\\\frontend\\\\src\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "Bash(dir \"C:\\\\Users\\\\danie\\\\Taarifa.live\\\\frontend\")"
     ]
   },
   "hooks": {

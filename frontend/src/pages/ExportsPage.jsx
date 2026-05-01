@@ -1,124 +1,123 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api.js';
 import { format, subDays } from 'date-fns';
+import { Btn, Badge, Card, Seg, Empty } from '../components/ui/index.jsx';
+import { IcoDownload, IcoPlus, IcoMore } from '../components/ui/Icons.jsx';
 
 export default function ExportsPage() {
-  const { t } = useTranslation();
   const [form, setForm] = useState({
-    deviceId: '', sensorKey: '', format: 'csv',
-    from: format(subDays(new Date(), 7), "yyyy-MM-dd'T'HH:mm"),
-    to:   format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+    deviceId: '', sensorKey: 'temperature', from: format(subDays(new Date(), 7), "yyyy-MM-dd'T'HH:mm"),
+    to: format(new Date(), "yyyy-MM-dd'T'HH:mm"), format: 'csv',
   });
-  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const { data: devicesData } = useQuery({ queryKey: ['devices'], queryFn: () => api.listDevices({ limit: 100 }) });
   const devices = devicesData?.devices || [];
 
-  const exportMut = useMutation({
-    mutationFn: api.createExport,
-    onSuccess: (data) => {
-      setJobs(j => [{ ...data, status: 'pending', createdAt: new Date().toISOString() }, ...j]);
-      pollJob(data.jobId);
-    },
-    onError: (err) => setError(err.message),
-  });
+  const REPORTS = [
+    { id: 'rep-001', name: 'Weekly fleet health',    cadence: 'Weekly · Mon 06:00',  format: 'PDF', recipients: 3, lastRun: format(subDays(new Date(), 7), 'MMM d'), status: 'ok' },
+    { id: 'rep-002', name: 'Monthly rainfall',       cadence: 'Monthly · 1st 06:00', format: 'CSV', recipients: 2, lastRun: format(subDays(new Date(), 30), 'MMM d'), status: 'ok' },
+    { id: 'rep-003', name: 'Air quality compliance', cadence: 'Daily · 07:00',       format: 'PDF', recipients: 5, lastRun: 'Today', status: 'ok' },
+    { id: 'rep-004', name: 'Critical alerts digest', cadence: 'Daily · 18:00',       format: 'PDF', recipients: 8, lastRun: 'Today', status: 'ok' },
+  ];
 
-  async function pollJob(jobId) {
-    for (let i = 0; i < 30; i++) {
-      await new Promise(r => setTimeout(r, 2000));
-      try {
-        const job = await api.getExportJob(jobId);
-        setJobs(j => j.map(jb => jb.jobId === jobId ? { ...jb, ...job } : jb));
-        if (job.status === 'ready' || job.status === 'failed') break;
-      } catch {}
+  async function handleExport(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const params = {
+        sensorKey: form.sensorKey,
+        from: new Date(form.from).toISOString(),
+        to: new Date(form.to).toISOString(),
+        format: form.format,
+      };
+      if (form.deviceId) params.deviceId = form.deviceId;
+
+      const blob = await api.exportReadings(params);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `taarifa-export-${form.sensorKey}-${format(new Date(), 'yyyyMMdd')}.${form.format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message || 'Export failed');
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function submit(e) {
-    e.preventDefault();
-    setError('');
-    exportMut.mutate(form);
-  }
-
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t('common.export')} Data</h1>
-        <p className="text-gray-500 mt-1">Download sensor data as CSV or Excel</p>
-      </div>
-
-      <div className="card max-w-xl">
-        <h2 className="font-semibold text-gray-900 mb-4">New Export</h2>
-        {error && <div className="mb-3 p-2 bg-red-50 text-red-700 text-sm rounded">{error}</div>}
-        <form onSubmit={submit} className="space-y-3">
-          <div>
-            <label className="label">Device *</label>
-            <select required className="input" value={form.deviceId} onChange={e => setForm(f => ({ ...f, deviceId: e.target.value }))}>
-              <option value="">Select device...</option>
-              {devices.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Sensor (optional — all sensors if blank)</label>
-            <input className="input" value={form.sensorKey} placeholder="temperature, humidity..." onChange={e => setForm(f => ({ ...f, sensorKey: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div><label className="label">From</label><input required type="datetime-local" className="input" value={form.from} onChange={e => setForm(f => ({ ...f, from: e.target.value }))} /></div>
-            <div><label className="label">To</label><input required type="datetime-local" className="input" value={form.to} onChange={e => setForm(f => ({ ...f, to: e.target.value }))} /></div>
-          </div>
-          <div>
-            <label className="label">Format</label>
-            <div className="flex gap-2">
-              {['csv', 'excel'].map(fmt => (
-                <button type="button" key={fmt} onClick={() => setForm(f => ({ ...f, format: fmt }))}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                    form.format === fmt ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                  }`}>
-                  {fmt.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button type="submit" disabled={exportMut.isPending} className="btn-primary">
-            {exportMut.isPending ? 'Requesting...' : 'Request Export'}
-          </button>
-        </form>
-      </div>
-
-      {jobs.length > 0 && (
-        <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">Export Jobs</h2>
-          <div className="space-y-3">
-            {jobs.map((job, i) => (
-              <div key={job.jobId || i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="text-sm font-medium text-gray-900">Export #{job.jobId?.slice(-6)}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{format(new Date(job.createdAt), 'MMM d, HH:mm')}</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {job.rowCount && <span className="text-xs text-gray-500">{job.rowCount.toLocaleString()} rows</span>}
-                  <span className={`badge ${
-                    job.status === 'ready' ? 'badge-green' :
-                    job.status === 'failed' ? 'badge-red' :
-                    job.status === 'processing' ? 'badge-blue' : 'badge-gray'
-                  }`}>
-                    {job.status}
-                  </span>
-                  {job.status === 'ready' && (
-                    <a href={api.downloadExport(job.jobId || job._id)} download
-                      className="btn-primary py-1 text-xs">
-                      {t('common.download')}
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+    <div className="page">
+      <div className="page__head">
+        <div>
+          <h1 className="page__title">Reports</h1>
+          <div className="page__sub">Scheduled exports, deliveries, and ad-hoc downloads.</div>
         </div>
-      )}
+        <div className="page__actions">
+          <Btn kind="primary" size="sm" icon={IcoPlus}>New report</Btn>
+        </div>
+      </div>
+
+      <div className="grid" style={{ gridTemplateColumns: '1fr 340px', alignItems: 'flex-start' }}>
+        <Card padding={false} title="Scheduled reports" sub={`${REPORTS.length} configured`}>
+          <table className="table">
+            <thead>
+              <tr><th>Name</th><th>Cadence</th><th>Format</th><th>Recipients</th><th>Last run</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {REPORTS.map(r => (
+                <tr key={r.id}>
+                  <td><span style={{ fontWeight: 500 }}>{r.name}</span></td>
+                  <td className="muted text-xs">{r.cadence}</td>
+                  <td><Badge kind="outline">{r.format}</Badge></td>
+                  <td className="muted">{r.recipients}</td>
+                  <td className="muted text-xs">{r.lastRun}</td>
+                  <td><Badge kind="ok" dot="ok">Healthy</Badge></td>
+                  <td><Btn kind="ghost" size="sm" icon={IcoMore} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+
+        <Card title="One-off export" sub="Download data to CSV or Excel">
+          {error && <div className="error-banner">{error}</div>}
+          <form onSubmit={handleExport}>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label className="field__label">Device</label>
+              <select className="select" value={form.deviceId} onChange={e => setForm(f => ({ ...f, deviceId: e.target.value }))}>
+                <option value="">All devices</option>
+                {devices.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label className="field__label">Sensor</label>
+              <select className="select" value={form.sensorKey} onChange={e => setForm(f => ({ ...f, sensorKey: e.target.value }))}>
+                {['temperature','humidity','pressure','rainfall','wind_speed','co2'].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label className="field__label">From</label>
+              <input type="datetime-local" className="input" value={form.from} onChange={e => setForm(f => ({ ...f, from: e.target.value }))} />
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label className="field__label">To</label>
+              <input type="datetime-local" className="input" value={form.to} onChange={e => setForm(f => ({ ...f, to: e.target.value }))} />
+            </div>
+            <div className="field" style={{ marginBottom: 16 }}>
+              <label className="field__label">Format</label>
+              <Seg value={form.format} onChange={v => setForm(f => ({ ...f, format: v }))} options={['csv','xlsx']} />
+            </div>
+            <Btn kind="primary" full icon={IcoDownload} type="submit" disabled={loading}>
+              {loading ? 'Exporting…' : 'Download export'}
+            </Btn>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
 import { api } from '../services/api.js';
+import { useAuthStore } from '../store/auth.js';
+import { Btn, Badge, StatusDot, Seg, Card, Sparkline, Empty, Spinner } from '../components/ui/index.jsx';
+import { IcoPlus, IcoBellOff, IcoBell, IcoShield, IcoHistory, IcoX, IcoCheck, IcoMore, IcoArrowRight, IcoLayers } from '../components/ui/Icons.jsx';
 import { format } from 'date-fns';
 
 const SENSORS = ['temperature','humidity','pressure','rainfall','wind_speed','co2','pm25','pm10'];
 const OPERATORS = ['>','<','>=','<=','=','!='];
 const SEVERITIES = ['info','warning','critical'];
-const CHANNELS = ['email','sms','web','webhook'];
+const CHANNELS = ['web','email','sms','webhook'];
 
 function RuleModal({ devices, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: '', sensorKey: 'temperature', operator: '>', threshold: '',
-    severity: 'warning', channels: ['web'], deviceId: '', cooldownS: 300, webhookUrl: '',
+    severity: 'warning', channels: ['web'], deviceId: '', cooldownS: 300,
   });
   const [error, setError] = useState('');
 
@@ -34,81 +36,92 @@ function RuleModal({ devices, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <h3 className="font-bold text-lg mb-4">{useTranslation().t('alerts.createRule')}</h3>
-        {error && <div className="mb-3 p-2 bg-red-50 text-red-700 text-sm rounded">{error}</div>}
-        <form onSubmit={submit} className="space-y-3">
-          <div><label className="label">Rule Name *</label><input required className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="label">Sensor</label>
-              <select className="input" value={form.sensorKey} onChange={e => setForm(f => ({ ...f, sensorKey: e.target.value }))}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 620 }} onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">New alert rule</div>
+          <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
+        </div>
+        <div className="modal__body">
+          {error && <div className="error-banner">{error}</div>}
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Rule name</label>
+            <input required className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
+
+          <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6 }}>Condition</div>
+          <div style={{ padding: 14, background: 'var(--bg-subtle)', borderRadius: 8, marginBottom: 14 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 14 }}>
+              <span>When</span>
+              <select className="select" style={{ width: 'auto', minWidth: 130 }} value={form.sensorKey}
+                onChange={e => setForm(f => ({ ...f, sensorKey: e.target.value }))}>
                 {SENSORS.map(s => <option key={s}>{s}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="label">Operator</label>
-              <select className="input" value={form.operator} onChange={e => setForm(f => ({ ...f, operator: e.target.value }))}>
+              <span>is</span>
+              <select className="select" style={{ width: 70 }} value={form.operator}
+                onChange={e => setForm(f => ({ ...f, operator: e.target.value }))}>
                 {OPERATORS.map(o => <option key={o}>{o}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="label">Threshold</label>
-              <input required type="number" step="any" className="input" value={form.threshold} onChange={e => setForm(f => ({ ...f, threshold: e.target.value }))} />
+              <input required type="number" step="any" className="input mono"
+                style={{ width: 90, fontFamily: 'var(--font-mono)' }}
+                value={form.threshold} onChange={e => setForm(f => ({ ...f, threshold: e.target.value }))} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="label">Severity</label>
-              <select className="input" value={form.severity} onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}>
-                {SEVERITIES.map(s => <option key={s} className="capitalize">{s}</option>)}
+
+          <div className="grid grid-cols-2" style={{ gap: 12, marginBottom: 14 }}>
+            <div className="field">
+              <label className="field__label">Severity</label>
+              <Seg value={form.severity} onChange={v => setForm(f => ({ ...f, severity: v }))}
+                options={SEVERITIES} />
+            </div>
+            <div className="field">
+              <label className="field__label">Device</label>
+              <select className="select" value={form.deviceId}
+                onChange={e => setForm(f => ({ ...f, deviceId: e.target.value }))}>
+                <option value="">All devices</option>
+                {devices?.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
               </select>
             </div>
-            <div>
-              <label className="label">Cooldown (s)</label>
-              <input type="number" className="input" value={form.cooldownS} onChange={e => setForm(f => ({ ...f, cooldownS: parseInt(e.target.value) }))} />
-            </div>
           </div>
-          <div>
-            <label className="label">Device (optional — blank = all)</label>
-            <select className="input" value={form.deviceId} onChange={e => setForm(f => ({ ...f, deviceId: e.target.value }))}>
-              <option value="">All devices</option>
-              {devices?.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
-            </select>
+
+          <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6 }}>Notify via</div>
+          <div className="row gap-2" style={{ marginBottom: 14 }}>
+            {CHANNELS.map(ch => (
+              <button key={ch} onClick={() => toggleChannel(ch)} className="badge"
+                style={{
+                  padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+                  background: form.channels.includes(ch) ? 'var(--accent-soft)' : 'transparent',
+                  color: form.channels.includes(ch) ? 'var(--accent-soft-fg)' : 'var(--fg-muted)',
+                  border: `1px solid ${form.channels.includes(ch) ? 'transparent' : 'var(--border)'}`,
+                  borderRadius: 9999,
+                }}>
+                {ch}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="label">Notification Channels</label>
-            <div className="flex gap-2 flex-wrap">
-              {CHANNELS.map(ch => (
-                <button type="button" key={ch} onClick={() => toggleChannel(ch)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    form.channels.includes(ch) ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-300 text-gray-600 hover:border-primary-400'
-                  }`}>
-                  {ch}
-                </button>
-              ))}
-            </div>
+
+          <div className="field">
+            <label className="field__label">Cooldown (seconds)</label>
+            <input type="number" className="input" style={{ width: 120 }} value={form.cooldownS}
+              onChange={e => setForm(f => ({ ...f, cooldownS: parseInt(e.target.value) }))} />
           </div>
-          {form.channels.includes('webhook') && (
-            <div><label className="label">Webhook URL</label><input type="url" className="input" value={form.webhookUrl} onChange={e => setForm(f => ({ ...f, webhookUrl: e.target.value }))} /></div>
-          )}
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button type="submit" className="btn-primary flex-1 justify-center">Create Rule</button>
-          </div>
-        </form>
+        </div>
+        <div className="modal__foot">
+          <Btn kind="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn kind="primary" icon={IcoCheck} onClick={submit}>Create rule</Btn>
+        </div>
       </div>
     </div>
   );
 }
 
 export default function AlertsPage() {
-  const { t } = useTranslation();
   const qc = useQueryClient();
-  const [tab, setTab] = useState('events');
-  const [showModal, setShowModal] = useState(false);
+  const user = useAuthStore(s => s.user);
+  const role = user?.role || 'viewer';
+  const [tab, setTab] = useState('inbox');
   const [stateFilter, setStateFilter] = useState('open');
+  const [showRule, setShowRule] = useState(false);
 
   const { data: rules } = useQuery({ queryKey: ['alert-rules'], queryFn: api.listAlertRules });
   const { data: events, isLoading } = useQuery({
@@ -116,125 +129,159 @@ export default function AlertsPage() {
     queryFn: () => api.listAlertEvents({ state: stateFilter, limit: 50 }),
     refetchInterval: 15_000,
   });
+  const { data: openData } = useQuery({
+    queryKey: ['alert-events', 'open'],
+    queryFn: () => api.listAlertEvents({ state: 'open', limit: 1 }),
+  });
   const { data: devicesData } = useQuery({ queryKey: ['devices'], queryFn: () => api.listDevices({ limit: 100 }) });
 
   const ackMut = useMutation({ mutationFn: api.acknowledgeAlert, onSuccess: () => qc.invalidateQueries(['alert-events']) });
   const resMut = useMutation({ mutationFn: api.resolveAlert,     onSuccess: () => qc.invalidateQueries(['alert-events']) });
   const delRuleMut = useMutation({ mutationFn: api.deleteAlertRule, onSuccess: () => qc.invalidateQueries(['alert-rules']) });
 
-  const severityBadge = (s) => s === 'critical' ? 'badge-red' : s === 'warning' ? 'badge-yellow' : 'badge-blue';
+  const openCount = openData?.total ?? 0;
+  const allEvents = events?.events || [];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="page">
+      <div className="page__head">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('alerts.title')}</h1>
-          <p className="text-gray-500 mt-1">Monitor and manage alert rules and events</p>
+          <h1 className="page__title">Alerts</h1>
+          <div className="page__sub">{openCount} open · {rules?.length ?? 0} rules configured</div>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary">{t('alerts.createRule')}</button>
+        <div className="page__actions">
+          {role !== 'viewer' && (
+            <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowRule(true)}>New rule</Btn>
+          )}
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200">
-        {['events', 'rules'].map(tab_ => (
-          <button key={tab_} onClick={() => setTab(tab_)}
-            className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${
-              tab === tab_ ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}>
-            {tab_ === 'events' ? t('alerts.events') : t('alerts.rules')}
-            {tab_ === 'events' && events?.total ? (
-              <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-red-100 text-red-700">{events.total}</span>
-            ) : null}
-          </button>
-        ))}
+      <div className="row gap-3" style={{ marginBottom: 12 }}>
+        <Seg value={tab} onChange={setTab} options={[
+          { value: 'inbox',   label: 'Triage',                   icon: IcoBell },
+          { value: 'rules',   label: `Rules · ${rules?.length ?? 0}`, icon: IcoShield },
+          { value: 'history', label: 'History',                  icon: IcoHistory },
+        ]} />
+        {tab === 'inbox' && (
+          <Seg value={stateFilter} onChange={setStateFilter} options={[
+            { value: 'open',         label: `Open · ${openCount}` },
+            { value: 'acknowledged', label: 'Acknowledged' },
+            { value: 'resolved',     label: 'Resolved' },
+          ]} />
+        )}
+        <div style={{ flex: 1 }} />
       </div>
 
-      {tab === 'events' && (
-        <>
-          <div className="flex gap-2">
-            {['open','acknowledged','resolved'].map(s => (
-              <button key={s} onClick={() => setStateFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-sm capitalize font-medium transition-colors ${
-                  stateFilter === s ? 'bg-gray-900 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                }`}>
-                {t(`alerts.${s}`)}
-              </button>
+      {tab === 'inbox' && (
+        <div className="grid" style={{ gridTemplateColumns: '1fr 280px', gap: 16 }}>
+          <div className="grid" style={{ gap: 10 }}>
+            {isLoading ? <Spinner /> : allEvents.length === 0 ? (
+              <Card><Empty icon={IcoCheck} title="All clear" hint="No alerts in this category." /></Card>
+            ) : allEvents.map(e => (
+              <div key={e._id} className="card row gap-3" style={{ padding: '12px 14px', alignItems: 'flex-start' }}>
+                <div style={{ marginTop: 2 }}><StatusDot status={e.severity} pulse={e.severity === 'critical'} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="row gap-2">
+                    <span style={{ fontWeight: 500, fontSize: 13 }}>{e.message}</span>
+                    <Badge kind={e.severity === 'critical' ? 'danger' : e.severity === 'warning' ? 'warn' : 'info'}>{e.severity}</Badge>
+                  </div>
+                  <div className="text-xs muted" style={{ marginTop: 3 }}>
+                    {format(new Date(e.createdAt), 'MMM d, HH:mm')} · Value: <span className="mono">{e.triggerValue}</span>
+                  </div>
+                </div>
+                {e.state === 'open' && role !== 'viewer' && (
+                  <div className="row gap-2">
+                    <Btn kind="secondary" size="sm" onClick={() => ackMut.mutate(e._id)}>Acknowledge</Btn>
+                    <Btn kind="primary" size="sm" onClick={() => resMut.mutate(e._id)}>Resolve</Btn>
+                  </div>
+                )}
+                {e.state === 'acknowledged' && role !== 'viewer' && (
+                  <Btn kind="primary" size="sm" onClick={() => resMut.mutate(e._id)}>Resolve</Btn>
+                )}
+                {e.state === 'resolved' && <Badge kind="ok">Resolved</Badge>}
+              </div>
             ))}
           </div>
 
-          <div className="space-y-3">
-            {isLoading
-              ? <p className="text-gray-400 text-sm">{t('common.loading')}</p>
-              : !events?.events?.length
-              ? <div className="card text-center text-gray-400 py-12">No {stateFilter} alerts</div>
-              : events.events.map(e => (
-                <div key={e._id} className="card flex items-start gap-4">
-                  <div className={`mt-1 w-3 h-3 rounded-full flex-shrink-0 ${
-                    e.severity === 'critical' ? 'bg-red-500' : e.severity === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
-                  }`} />
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">{e.message}</div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {format(new Date(e.createdAt), 'MMM d, yyyy HH:mm')} · Value: {e.triggerValue}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`badge ${severityBadge(e.severity)}`}>{e.severity}</span>
-                    {e.state === 'open' && (
-                      <>
-                        <button onClick={() => ackMut.mutate(e._id)} className="text-xs text-primary-600 hover:underline">{t('alerts.acknowledge')}</button>
-                        <button onClick={() => resMut.mutate(e._id)} className="text-xs text-green-600 hover:underline">{t('alerts.resolve')}</button>
-                      </>
-                    )}
-                    {e.state === 'acknowledged' && (
-                      <button onClick={() => resMut.mutate(e._id)} className="text-xs text-green-600 hover:underline">{t('alerts.resolve')}</button>
-                    )}
-                  </div>
-                </div>
-              ))
-            }
-          </div>
-        </>
-      )}
-
-      {tab === 'rules' && (
-        <div className="card p-0 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {['Name', 'Condition', 'Severity', 'Channels', 'Active', 'Actions'].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+          <div className="grid" style={{ gap: 12, alignContent: 'flex-start' }}>
+            <Card title="Volume · 7 days">
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 90 }}>
+                {[12, 8, 14, 22, 9, 6, openCount].map((v, i) => (
+                  <div key={i} style={{ flex: 1, height: `${(v/22)*100}%`, background: i === 3 ? 'var(--danger)' : 'var(--accent)', borderRadius: 2, opacity: i === 6 ? 0.5 : 0.85, minHeight: 2 }} />
                 ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {!rules?.length
-                ? <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No rules defined</td></tr>
-                : rules.map(r => (
-                  <tr key={r._id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{r.name}</td>
-                    <td className="px-4 py-3 text-gray-600 font-mono text-xs">{r.sensorKey} {r.operator} {r.threshold}</td>
-                    <td className="px-4 py-3"><span className={`badge ${severityBadge(r.severity)}`}>{r.severity}</span></td>
-                    <td className="px-4 py-3 text-gray-500">{r.channels?.join(', ')}</td>
-                    <td className="px-4 py-3">
-                      <span className={`badge ${r.isActive ? 'badge-green' : 'badge-gray'}`}>{r.isActive ? 'Yes' : 'No'}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => { if (confirm('Delete rule?')) delRuleMut.mutate(r._id); }}
-                        className="text-xs text-red-600 hover:underline">Delete</button>
-                    </td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
+              </div>
+              <div className="row" style={{ justifyContent: 'space-between', marginTop: 6, fontSize: 10.5, color: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}>
+                {['Wed','Thu','Fri','Sat','Sun','Mon','Today'].map(d => <span key={d}>{d}</span>)}
+              </div>
+            </Card>
+            <Card title="Response time">
+              <div className="row gap-3" style={{ alignItems: 'flex-end' }}>
+                <div className="text-2xl font-semibold tabnum">—</div>
+              </div>
+              <div className="text-xs subtle">Mean time to acknowledge</div>
+            </Card>
+          </div>
         </div>
       )}
 
-      {showModal && (
+      {tab === 'rules' && (
+        <Card padding={false}>
+          <table className="table">
+            <thead>
+              <tr><th>Rule</th><th>Condition</th><th>Severity</th><th>Channels</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {!rules?.length ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>No rules defined</td></tr>
+              ) : rules.map(r => (
+                <tr key={r._id}>
+                  <td><span style={{ fontWeight: 500 }}>{r.name}</span></td>
+                  <td className="mono text-xs">{r.sensorKey} {r.operator} {r.threshold}</td>
+                  <td><Badge kind={r.severity === 'critical' ? 'danger' : r.severity === 'warning' ? 'warn' : 'info'}>{r.severity}</Badge></td>
+                  <td><div className="row gap-1">{r.channels?.map(c => <Badge key={c} kind="outline">{c}</Badge>)}</div></td>
+                  <td>
+                    <span className={`row gap-2 text-xs ${r.isActive ? '' : 'subtle'}`}>
+                      <span className={`dot ${r.isActive ? 'dot--ok' : 'dot--off'}`} />
+                      {r.isActive ? 'Active' : 'Paused'}
+                    </span>
+                  </td>
+                  <td>
+                    {role !== 'viewer' && (
+                      <Btn kind="danger" size="sm" onClick={() => { if (confirm('Delete rule?')) delRuleMut.mutate(r._id); }}>Delete</Btn>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {tab === 'history' && (
+        <Card padding={false}>
+          <table className="table">
+            <thead><tr><th>When</th><th>Severity</th><th>Message</th><th>Value</th><th>State</th></tr></thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32 }}><Spinner /></td></tr>
+              ) : allEvents.map(e => (
+                <tr key={e._id}>
+                  <td className="muted text-xs mono">{format(new Date(e.createdAt), 'MMM d, HH:mm')}</td>
+                  <td><Badge kind={e.severity === 'critical' ? 'danger' : e.severity === 'warning' ? 'warn' : 'info'}>{e.severity}</Badge></td>
+                  <td>{e.message}</td>
+                  <td className="mono text-xs">{e.triggerValue}</td>
+                  <td><Badge kind={e.state === 'resolved' ? 'ok' : e.state === 'acknowledged' ? 'warn' : 'neutral'}>{e.state}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {showRule && (
         <RuleModal
           devices={devicesData?.devices}
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowRule(false)}
           onSaved={() => qc.invalidateQueries(['alert-rules'])}
         />
       )}
