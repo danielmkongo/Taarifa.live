@@ -4,9 +4,6 @@ import { buildApp } from './app.js';
 
 const logger = {
   level: config.env === 'production' ? 'info' : 'debug',
-  ...(config.env !== 'production' && {
-    transport: { target: 'pino-pretty', options: { colorize: true } },
-  }),
 };
 
 async function start() {
