@@ -36,7 +36,7 @@ export const config = {
     refreshSecret:  required('JWT_REFRESH_SECRET'),
     expiresIn:      '7d',
     refreshExpiresIn: '30d', 
-  },
+  }, 
 
   smtp: {
     host: process.env.SMTP_HOST,
