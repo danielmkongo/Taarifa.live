@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+backend/.env
+frontend/.env
+frontend/.env.local
+nginx/ssl/
+exports/
+mqtt-broker/passwd
+*.log
+.DS_Store

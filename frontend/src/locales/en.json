@@ -1,0 +1,37 @@
+{
+  "nav": {
+    "dashboard": "Dashboard", "devices": "Devices", "data": "Data",
+    "map": "Map", "alerts": "Alerts", "reports": "Reports",
+    "ecalendar": "E-Calendar", "users": "Users", "settings": "Settings"
+  },
+  "common": {
+    "loading": "Loading...", "error": "Error", "save": "Save",
+    "cancel": "Cancel", "delete": "Delete", "edit": "Edit",
+    "create": "Create", "search": "Search", "filter": "Filter",
+    "export": "Export", "download": "Download", "refresh": "Refresh",
+    "online": "Online", "offline": "Offline", "alert": "Alert",
+    "noData": "No data available", "confirm": "Confirm"
+  },
+  "auth": {
+    "login": "Sign In", "logout": "Sign Out", "register": "Register",
+    "email": "Email", "password": "Password", "fullName": "Full Name",
+    "orgName": "Organization Name", "forgotPassword": "Forgot password?"
+  },
+  "dashboard": {
+    "title": "Dashboard", "totalDevices": "Total Devices",
+    "onlineDevices": "Online Devices", "activeAlerts": "Active Alerts",
+    "recentReadings": "Recent Readings"
+  },
+  "devices": {
+    "title": "Devices", "addDevice": "Add Device", "deviceName": "Device Name",
+    "group": "Group", "location": "Location", "lastSeen": "Last Seen",
+    "battery": "Battery", "firmware": "Firmware", "apiKey": "API Key",
+    "rotateKey": "Rotate Key", "configure": "Configure"
+  },
+  "alerts": {
+    "title": "Alerts", "rules": "Alert Rules", "events": "Alert Events",
+    "createRule": "Create Rule", "sensor": "Sensor", "operator": "Condition",
+    "threshold": "Threshold", "severity": "Severity", "acknowledge": "Acknowledge",
+    "resolve": "Resolve", "open": "Open", "acknowledged": "Acknowledged", "resolved": "Resolved"
+  }
+}

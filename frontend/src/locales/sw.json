@@ -1,0 +1,37 @@
+{
+  "nav": {
+    "dashboard": "Dashibodi", "devices": "Vifaa", "data": "Data",
+    "map": "Ramani", "alerts": "Tahadhari", "reports": "Ripoti",
+    "ecalendar": "Kalenda ya E", "users": "Watumiaji", "settings": "Mipangilio"
+  },
+  "common": {
+    "loading": "Inapakia...", "error": "Hitilafu", "save": "Hifadhi",
+    "cancel": "Ghairi", "delete": "Futa", "edit": "Hariri",
+    "create": "Unda", "search": "Tafuta", "filter": "Chuja",
+    "export": "Hamisha", "download": "Pakua", "refresh": "Onyesha upya",
+    "online": "Mtandaoni", "offline": "Nje ya mtandao", "alert": "Tahadhari",
+    "noData": "Hakuna data", "confirm": "Thibitisha"
+  },
+  "auth": {
+    "login": "Ingia", "logout": "Toka", "register": "Jisajili",
+    "email": "Barua pepe", "password": "Nywila", "fullName": "Jina kamili",
+    "orgName": "Jina la shirika", "forgotPassword": "Umesahau nywila?"
+  },
+  "dashboard": {
+    "title": "Dashibodi", "totalDevices": "Jumla ya Vifaa",
+    "onlineDevices": "Vifaa Vilivyounganishwa", "activeAlerts": "Tahadhari Zinazofanya kazi",
+    "recentReadings": "Usomaji wa Hivi Karibuni"
+  },
+  "devices": {
+    "title": "Vifaa", "addDevice": "Ongeza Kifaa", "deviceName": "Jina la Kifaa",
+    "group": "Kikundi", "location": "Mahali", "lastSeen": "Mara ya Mwisho Kuonekana",
+    "battery": "Betri", "firmware": "Programu ya msingi", "apiKey": "Ufunguo wa API",
+    "rotateKey": "Zungusha Ufunguo", "configure": "Sanidi"
+  },
+  "alerts": {
+    "title": "Tahadhari", "rules": "Sheria za Tahadhari", "events": "Matukio ya Tahadhari",
+    "createRule": "Unda Sheria", "sensor": "Sensori", "operator": "Hali",
+    "threshold": "Kiwango", "severity": "Ukali", "acknowledge": "Kubali",
+    "resolve": "Suluhisha", "open": "Wazi", "acknowledged": "Imekubaliwa", "resolved": "Imesululiwa"
+  }
+}
