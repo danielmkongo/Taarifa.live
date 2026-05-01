@@ -33,7 +33,7 @@ export default async function authRoutes(fastify) {
     });
 
     const token = fastify.jwt.sign(
-      { sub: userResult.insertedId, orgId: orgResult.insertedId, role: 'org_admin' },
+      { sub: userResult.insertedId.toString(), orgId: orgResult.insertedId.toString(), role: 'org_admin' },
       { expiresIn: config.jwt.expiresIn }
     );
 
@@ -54,7 +54,7 @@ export default async function authRoutes(fastify) {
     await col('users').updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
 
     const token = fastify.jwt.sign(
-      { sub: user._id, orgId: user.orgId, role: user.role },
+      { sub: user._id.toString(), orgId: user.orgId.toString(), role: user.role },
       { expiresIn: config.jwt.expiresIn }
     );
 
@@ -89,7 +89,7 @@ export default async function authRoutes(fastify) {
     if (!user || !user.isActive) return reply.unauthorized();
 
     const token = fastify.jwt.sign(
-      { sub: user._id, orgId: user.orgId, role: user.role },
+      { sub: user._id.toString(), orgId: user.orgId.toString(), role: user.role },
       { expiresIn: config.jwt.expiresIn }
     );
 

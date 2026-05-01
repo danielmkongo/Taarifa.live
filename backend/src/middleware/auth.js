@@ -1,11 +1,11 @@
 import { col } from '../config/db.js';
+import { ObjectId } from 'mongodb';
 
 export async function authenticate(req, reply) {
   try {
     await req.jwtVerify();
-    // Attach fresh user from DB for up-to-date role/status
     const user = await col('users').findOne(
-      { _id: req.user.sub },
+      { _id: new ObjectId(req.user.sub) },
       { projection: { passwordHash: 0 } }
     );
     if (!user || !user.isActive) return reply.unauthorized();
