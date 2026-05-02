@@ -179,21 +179,30 @@ export default function DashboardPage() {
       )}
 
       <div className="grid grid-cols-4" style={{ marginBottom: 16 }}>
-        <KpiCard label="Devices online" value={`${online}`} sub={`of ${total} total · ${offline} offline`}
-          trend="+2 this week" trendKind="ok"
-          spark={genSeries(20, Math.max(online, 1), 0.5, 1, 41)} sparkColor="var(--ok)"
+        <KpiCard label="Devices online" value={total > 0 ? `${online}` : '—'}
+          sub={total > 0 ? `of ${total} total · ${offline} offline` : 'No devices registered'}
+          trend={total > 0 ? `${alerting > 0 ? `${alerting} alerting` : 'All healthy'}` : null}
+          trendKind={alerting > 0 ? 'warn' : 'ok'}
+          spark={activityData.length > 0 ? activityData.map((d, i) => ({ t: i, v: d.v })) : null}
+          sparkColor="var(--ok)"
           accent={true} />
         <KpiCard label="Open alerts" value={openAlerts}
           sub={`${critical} critical · ${(alertEvents?.events || []).filter(e => e.severity === 'warning').length} warning`}
-          trend={openAlerts === 0 ? 'All clear' : `−3 vs yesterday`}
-          trendKind={openAlerts === 0 ? 'ok' : 'warn'}
-          spark={genSeries(20, Math.max(openAlerts, 2), 1.5, -2, 42)} sparkColor="var(--danger)" />
-        <KpiCard label="Data points · 24h" value={totalCount} sub="across all sensors"
-          trend="+4.1%" trendKind="ok"
+          trend={openAlerts === 0 ? 'All clear' : `${openAlerts} need attention`}
+          trendKind={openAlerts === 0 ? 'ok' : critical > 0 ? 'danger' : 'warn'}
+          spark={activityData.map((d, i) => ({ t: i, v: d.v }))} sparkColor="var(--danger)" />
+        <KpiCard label="Data points · 24h" value={totalCount}
+          sub={fleet?.deviceCount ? `from ${fleet.deviceCount} devices` : 'across all sensors'}
+          trend={totalReadings > 0 ? `${fleet?.deviceCount ?? 0} active devices` : 'No data yet'}
+          trendKind={totalReadings > 0 ? 'ok' : 'neutral'}
           spark={activityData.map((d, i) => ({ t: i, v: d.v }))} sparkColor="var(--accent)" />
-        <KpiCard label="Avg uptime · 30d" value="99.21%" sub="SLA target 99.0%"
-          trend="On track" trendKind="ok"
-          spark={genSeries(20, 99, 0.3, 0.2, 44)} sparkColor="var(--ok)" />
+        <KpiCard label="Online rate"
+          value={total > 0 ? `${Math.round((online / total) * 100)}%` : '—'}
+          sub={total > 0 ? `${online} of ${total} devices` : 'No devices yet'}
+          trend={total > 0 ? (online === total ? 'All online' : `${total - online} offline`) : null}
+          trendKind={online === total && total > 0 ? 'ok' : online / total >= 0.8 ? 'warn' : 'danger'}
+          spark={activityData.length > 0 ? activityData.map((d, i) => ({ t: i, v: d.v })) : null}
+          sparkColor="var(--ok)" />
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', alignItems: 'stretch' }}>

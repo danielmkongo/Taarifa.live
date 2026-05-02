@@ -201,8 +201,8 @@ function ContentModal({ onClose, onSaved, groups = [], devices = [], initial = n
 }
 
 // ─── Screen modal ───────────────────────────────────────────────────────────────
-function ScreenModal({ onClose, onSaved, groups = [] }) {
-  const [form, setForm] = useState({ name: '', location: '', groupId: '' });
+function ScreenModal({ onClose, onSaved, groups = [], iotDevices = [] }) {
+  const [form, setForm] = useState({ name: '', location: '', groupId: '', iotDeviceId: '' });
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -230,11 +230,15 @@ function ScreenModal({ onClose, onSaved, groups = [] }) {
         </div>
         <div className="modal__body">
           <div style={{ background: 'var(--bg-subtle)', borderRadius: 8, padding: 16, marginBottom: 4 }}>
+            <div className="text-xs muted" style={{ marginBottom: 4 }}>Device ID</div>
+            <code style={{ fontSize: 12 }}>{result.id}</code>
+          </div>
+          <div style={{ background: 'var(--bg-subtle)', borderRadius: 8, padding: 16, marginBottom: 4, marginTop: 8 }}>
             <div className="text-xs muted" style={{ marginBottom: 4 }}>API Key (shown once — copy now)</div>
             <code style={{ wordBreak: 'break-all', fontSize: 12 }}>{result.apiKey}</code>
           </div>
           <div className="text-xs muted" style={{ marginTop: 8 }}>
-            Configure this key on the display device. It will authenticate with <code>x-api-key</code> header.
+            Configure these on the display device. It authenticates with <code>x-api-key</code> header.
           </div>
         </div>
         <div className="modal__foot">
@@ -272,10 +276,79 @@ function ScreenModal({ onClose, onSaved, groups = [] }) {
                 {groups.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
               </select>
             </div>
+            <div className="field">
+              <label className="field__label">Linked IoT device (optional)</label>
+              <select className="select" value={form.iotDeviceId}
+                onChange={e => setForm(f => ({ ...f, iotDeviceId: e.target.value }))}>
+                <option value="">None</option>
+                {iotDevices.map(d => (
+                  <option key={d._id} value={d._id}>{d.name}{d.locationName ? ` · ${d.locationName}` : ''}</option>
+                ))}
+              </select>
+              <div className="text-xs muted" style={{ marginTop: 3 }}>
+                Link to a sensor logger to pull live readings onto this display.
+              </div>
+            </div>
           </div>
           <div className="modal__foot">
             <Btn kind="secondary" type="button" onClick={onClose}>Cancel</Btn>
             <Btn kind="primary" type="submit" icon={IcoCheck} disabled={saving}>Register screen</Btn>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── OTA modal (push firmware to a single display screen) ──────────────────────
+function OtaModal({ screen, onClose, onSaved }) {
+  const [form, setForm] = useState({ version: '', fileUrl: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!form.version || !form.fileUrl) { setError('Version and URL are required'); return; }
+    setSaving(true); setError('');
+    try {
+      await api.otaEcalDevice(screen._id, form);
+      onSaved();
+      onClose();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">Push OTA · {screen.name}</div>
+          <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
+        </div>
+        <form onSubmit={submit}>
+          <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {error && <div className="error-banner">{error}</div>}
+            <div style={{ padding: '8px 10px', background: 'var(--bg-subtle)', borderRadius: 6, fontSize: 12 }}>
+              <span className="muted">Current firmware: </span>
+              <code>{screen.firmwareVersion || 'unknown'}</code>
+            </div>
+            <div className="field">
+              <label className="field__label">Target version *</label>
+              <input required className="input mono" value={form.version} placeholder="e.g. 2.1.0"
+                onChange={e => setForm(f => ({ ...f, version: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label className="field__label">Firmware URL *</label>
+              <input required className="input" value={form.fileUrl} placeholder="https://…/firmware.bin"
+                onChange={e => setForm(f => ({ ...f, fileUrl: e.target.value }))} />
+              <div className="text-xs muted" style={{ marginTop: 3 }}>
+                The display device will download and flash this binary on next heartbeat.
+              </div>
+            </div>
+          </div>
+          <div className="modal__foot">
+            <Btn kind="secondary" type="button" onClick={onClose}>Cancel</Btn>
+            <Btn kind="primary" type="submit" disabled={saving}>{saving ? 'Pushing…' : 'Push OTA'}</Btn>
           </div>
         </form>
       </div>
@@ -510,7 +583,7 @@ function ScheduleTab({ content }) {
 }
 
 // ─── Screens tab ────────────────────────────────────────────────────────────────
-function ScreensTab({ screens, onNew, onDelete }) {
+function ScreensTab({ screens, onNew, onDelete, onOta }) {
   return (
     <>
       <div className="row" style={{ marginBottom: 12, justifyContent: 'flex-end' }}>
@@ -521,12 +594,12 @@ function ScreensTab({ screens, onNew, onDelete }) {
           <thead>
             <tr>
               <th></th><th>Screen</th><th>Group</th><th>Location</th>
-              <th>Now playing</th><th>Last heartbeat</th><th></th>
+              <th>Firmware</th><th>Now playing</th><th>Last heartbeat</th><th></th>
             </tr>
           </thead>
           <tbody>
             {screens.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>
                 No screens registered — register a display device to get started
               </td></tr>
             ) : screens.map(s => (
@@ -538,6 +611,14 @@ function ScreensTab({ screens, onNew, onDelete }) {
                 </td>
                 <td><Badge kind="outline">{s.groupName || '—'}</Badge></td>
                 <td className="muted text-xs">{s.location || '—'}</td>
+                <td className="text-xs">
+                  <div className="row gap-1" style={{ alignItems: 'center' }}>
+                    <code style={{ fontSize: 11 }}>{s.firmwareVersion || '—'}</code>
+                    {s.otaPending && (
+                      <Badge kind="warning" dot="warning">OTA pending</Badge>
+                    )}
+                  </div>
+                </td>
                 <td className="muted text-xs">{s.nowPlaying || (s.status === 'online' ? 'Syncing…' : '—')}</td>
                 <td className="muted text-xs">
                   {s.lastSeenAt
@@ -546,7 +627,7 @@ function ScreensTab({ screens, onNew, onDelete }) {
                 </td>
                 <td>
                   <div className="row gap-1">
-                    <Btn kind="ghost" size="sm" icon={IcoSettings} title="Configure" />
+                    <Btn kind="ghost" size="sm" icon={IcoSettings} title="Push OTA" onClick={() => onOta(s)}>OTA</Btn>
                     <Btn kind="ghost" size="sm" icon={IcoMore} title="More" />
                   </div>
                 </td>
@@ -568,15 +649,18 @@ export default function ECalendarPage() {
   const [showContentModal, setShowContentModal] = useState(false);
   const [showScreenModal,  setShowScreenModal]  = useState(false);
   const [editingContent,   setEditingContent]   = useState(null);
+  const [otaScreen,        setOtaScreen]        = useState(null);
 
   const { data: stats }    = useQuery({ queryKey: ['ecal-stats'],    queryFn: api.getEcalStats,    refetchInterval: 30_000 });
   const { data: rawContent } = useQuery({ queryKey: ['ecal-content'], queryFn: () => api.listEcalContent() });
   const { data: rawScreens } = useQuery({ queryKey: ['ecal-devices'], queryFn: api.listEcalDevices, refetchInterval: 30_000 });
   const { data: rawGroups }  = useQuery({ queryKey: ['ecal-groups'],  queryFn: api.listEcalGroups });
+  const { data: rawIotDevices } = useQuery({ queryKey: ['devices-ecal'], queryFn: () => api.listDevices({ limit: 100 }) });
 
-  const content = Array.isArray(rawContent) ? rawContent : (rawContent?.items || []);
-  const screens = Array.isArray(rawScreens) ? rawScreens : (rawScreens?.items || []);
-  const groups  = Array.isArray(rawGroups)  ? rawGroups  : (rawGroups?.items  || []);
+  const content    = Array.isArray(rawContent)    ? rawContent    : (rawContent?.items    || []);
+  const screens    = Array.isArray(rawScreens)    ? rawScreens    : (rawScreens?.items    || []);
+  const groups     = Array.isArray(rawGroups)     ? rawGroups     : (rawGroups?.items     || []);
+  const iotDevices = rawIotDevices?.devices || [];
 
   const delContent = useMutation({
     mutationFn: api.deleteEcalContent,
@@ -594,7 +678,7 @@ export default function ECalendarPage() {
   }
 
   const PAGE_META = {
-    overview:  { title: 'E-Calendar',       sub: 'Display network overview — screens, content, and live status.' },
+    overview:  { title: 'e-Calendar',       sub: 'Display network overview — screens, content, and live status.' },
     content:   { title: 'Content library',  sub: 'Reusable content items scheduled to display devices.' },
     schedule:  { title: 'Schedule',         sub: 'Prioritised content distribution timeline.' },
     screens:   { title: 'Screens',          sub: 'Registered display devices and real-time heartbeat status.' },
@@ -639,7 +723,8 @@ export default function ECalendarPage() {
       {tab === 'screens' && (
         <ScreensTab screens={screens}
           onNew={() => setShowScreenModal(true)}
-          onDelete={id => { if (confirm('Remove this screen?')) delScreen.mutate(id); }} />
+          onDelete={id => { if (confirm('Remove this screen?')) delScreen.mutate(id); }}
+          onOta={s => setOtaScreen(s)} />
       )}
 
       {showContentModal && (
@@ -655,7 +740,16 @@ export default function ECalendarPage() {
       {showScreenModal && (
         <ScreenModal
           groups={groups}
+          iotDevices={iotDevices}
           onClose={() => setShowScreenModal(false)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['ecal-devices'] })}
+        />
+      )}
+
+      {otaScreen && (
+        <OtaModal
+          screen={otaScreen}
+          onClose={() => setOtaScreen(null)}
           onSaved={() => qc.invalidateQueries({ queryKey: ['ecal-devices'] })}
         />
       )}

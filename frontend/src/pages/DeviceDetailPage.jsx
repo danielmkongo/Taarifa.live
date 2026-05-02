@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import { api } from '../services/api.js';
 import { format, subHours } from 'date-fns';
 import { Btn, Badge, StatusDot, Seg, Card, LineChart, Sparkline, Empty, Spinner } from '../components/ui/index.jsx';
-import { IcoArrowRight, IcoDownload, IcoSettings, IcoRefresh, IcoMap } from '../components/ui/Icons.jsx';
+import { IcoArrowRight, IcoDownload, IcoSettings, IcoRefresh, IcoMap, IcoKey, IcoX, IcoCheck, IcoCopy } from '../components/ui/Icons.jsx';
 
 const SENSORS = [
   { key: 'temperature', label: 'Temperature', unit: '°C',  color: 'var(--c1)' },
@@ -82,6 +82,202 @@ function beaconIcon(status) {
   };
 }
 
+// ─── Configure Modal ──────────────────────────────────────────────────────────
+function ConfigureModal({ device, onClose, onSaved }) {
+  const qc = useQueryClient();
+  const [tab, setTab] = useState('info');
+  const [form, setForm] = useState({
+    name:         device.name || '',
+    description:  device.description || '',
+    locationName: device.locationName || '',
+    lat: device.location?.coordinates?.[1] ?? '',
+    lon: device.location?.coordinates?.[0] ?? '',
+  });
+  const [newApiKey, setNewApiKey] = useState(null);
+  const [rotating, setRotating] = useState(false);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
+  const [copied, setCopied]     = useState('');
+
+  function copy(text, label) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(label);
+      setTimeout(() => setCopied(''), 1800);
+    });
+  }
+
+  async function save(e) {
+    e.preventDefault();
+    setSaving(true); setError('');
+    try {
+      await api.updateDevice(device._id, {
+        name:         form.name,
+        description:  form.description,
+        locationName: form.locationName,
+        lat:          form.lat !== '' ? parseFloat(form.lat) : undefined,
+        lon:          form.lon !== '' ? parseFloat(form.lon) : undefined,
+      });
+      qc.invalidateQueries({ queryKey: ['device', device._id] });
+      onSaved?.();
+      onClose();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  async function rotateKey() {
+    if (!confirm('Regenerate API key? The current key will stop working immediately.')) return;
+    setRotating(true);
+    try {
+      const res = await api.rotateKey(device._id);
+      setNewApiKey(res.apiKey);
+    } catch (err) { setError(err.message); }
+    finally { setRotating(false); }
+  }
+
+  const deviceId = device._id?.toString();
+  const apiKeyPrefix = device.apiKeyPrefix ? `${device.apiKeyPrefix}${'•'.repeat(56)}` : '—';
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">Configure · {device.name}</div>
+          <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
+        </div>
+
+        {/* Tabs */}
+        <div className="row gap-0" style={{ borderBottom: '1px solid var(--border)', padding: '0 20px' }}>
+          {[['info', 'Device info'], ['keys', 'API & Keys'], ['location', 'Location']].map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '8px 14px', fontSize: 13, fontWeight: tab === k ? 600 : 400,
+                color: tab === k ? 'var(--fg)' : 'var(--fg-muted)',
+                borderBottom: tab === k ? '2px solid var(--accent)' : '2px solid transparent',
+                marginBottom: -1,
+              }}>{l}</button>
+          ))}
+        </div>
+
+        <div className="modal__body" style={{ minHeight: 200 }}>
+          {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
+
+          {tab === 'info' && (
+            <form id="cfg-form" onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="field">
+                <label className="field__label">Device ID</label>
+                <div className="row gap-2">
+                  <input readOnly className="input mono" value={deviceId} style={{ flex: 1, opacity: 0.7 }} />
+                  <Btn kind="ghost" size="sm" icon={IcoCopy} onClick={() => copy(deviceId, 'id')} title="Copy">
+                    {copied === 'id' ? '✓' : ''}
+                  </Btn>
+                </div>
+              </div>
+              <div className="field">
+                <label className="field__label">Name</label>
+                <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div className="field">
+                <label className="field__label">Description</label>
+                <input className="input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2" style={{ gap: 10 }}>
+                <div className="field">
+                  <label className="field__label">Serial number</label>
+                  <input readOnly className="input mono" value={device.serialNumber || '—'} style={{ opacity: 0.7 }} />
+                </div>
+                <div className="field">
+                  <label className="field__label">Firmware</label>
+                  <input readOnly className="input mono" value={device.firmwareVersion || device.firmware || '—'} style={{ opacity: 0.7 }} />
+                </div>
+              </div>
+            </form>
+          )}
+
+          {tab === 'keys' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="field">
+                <label className="field__label">Device ID</label>
+                <div className="row gap-2">
+                  <input readOnly className="input mono" value={deviceId} style={{ flex: 1, fontSize: 11, opacity: 0.8 }} />
+                  <Btn kind="ghost" size="sm" icon={IcoCopy} onClick={() => copy(deviceId, 'id')} title="Copy">
+                    {copied === 'id' ? '✓' : ''}
+                  </Btn>
+                </div>
+              </div>
+              <div className="field">
+                <label className="field__label">API Key prefix</label>
+                <div className="row gap-2">
+                  <input readOnly className="input mono" value={apiKeyPrefix} style={{ flex: 1, fontSize: 11, opacity: 0.8 }} />
+                </div>
+                <div className="text-xs muted" style={{ marginTop: 4 }}>
+                  Full key is hashed and not stored. Use the prefix to identify which key is in use.
+                </div>
+              </div>
+
+              {newApiKey && (
+                <div style={{ background: 'var(--bg-subtle)', borderRadius: 8, padding: 12, border: '1px solid var(--border)' }}>
+                  <div className="text-xs font-medium" style={{ marginBottom: 6, color: 'var(--ok-soft-fg)' }}>New API key (copy now — shown once)</div>
+                  <div className="row gap-2">
+                    <code style={{ flex: 1, fontSize: 11, wordBreak: 'break-all', fontFamily: 'var(--font-mono)' }}>{newApiKey}</code>
+                    <Btn kind="ghost" size="sm" icon={IcoCopy} onClick={() => copy(newApiKey, 'newkey')} title="Copy">
+                      {copied === 'newkey' ? '✓' : ''}
+                    </Btn>
+                  </div>
+                </div>
+              )}
+
+              <Btn kind="secondary" size="sm" icon={IcoKey} disabled={rotating} onClick={rotateKey}
+                style={{ alignSelf: 'flex-start' }}>
+                {rotating ? 'Rotating…' : 'Rotate API key'}
+              </Btn>
+              <div className="text-xs muted" style={{ marginTop: -8 }}>
+                Rotating the key will immediately invalidate the current one. Update your device firmware before rotating.
+              </div>
+            </div>
+          )}
+
+          {tab === 'location' && (
+            <form id="cfg-form" onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="field">
+                <label className="field__label">Location name</label>
+                <input className="input" value={form.locationName} placeholder="e.g. Kinondoni Station A"
+                  onChange={e => setForm(f => ({ ...f, locationName: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2" style={{ gap: 10 }}>
+                <div className="field">
+                  <label className="field__label">Latitude</label>
+                  <input type="number" step="any" className="input mono" value={form.lat}
+                    onChange={e => setForm(f => ({ ...f, lat: e.target.value }))} />
+                </div>
+                <div className="field">
+                  <label className="field__label">Longitude</label>
+                  <input type="number" step="any" className="input mono" value={form.lon}
+                    onChange={e => setForm(f => ({ ...f, lon: e.target.value }))} />
+                </div>
+              </div>
+              {form.lat && form.lon && (
+                <div className="text-xs muted">
+                  Current: {parseFloat(form.lat).toFixed(5)}, {parseFloat(form.lon).toFixed(5)}
+                </div>
+              )}
+            </form>
+          )}
+        </div>
+
+        <div className="modal__foot">
+          <Btn kind="secondary" onClick={onClose}>Close</Btn>
+          {(tab === 'info' || tab === 'location') && (
+            <Btn kind="primary" icon={IcoCheck} type="submit" form="cfg-form" disabled={saving}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </Btn>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DeviceMap({ device }) {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -126,10 +322,12 @@ function DeviceMap({ device }) {
 export default function DeviceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [sensorKey, setSensorKey] = useState('temperature');
-  const [range, setRange]         = useState('24h');
-  const [chartType, setChartType] = useState('line');
-  const [exporting, setExporting] = useState(false);
+  const qc = useQueryClient();
+  const [sensorKey, setSensorKey]   = useState('temperature');
+  const [range, setRange]           = useState('24h');
+  const [chartType, setChartType]   = useState('line');
+  const [exporting, setExporting]   = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
 
   const { data: device, isLoading: loadingDevice } = useQuery({
     queryKey: ['device', id],
@@ -188,6 +386,14 @@ export default function DeviceDetailPage() {
   const latestMap = {};
   (Array.isArray(latest) ? latest : []).forEach(r => { latestMap[r._id] = r.value; });
 
+  const { data: firmwareList = [] } = useQuery({
+    queryKey: ['firmware'],
+    queryFn: api.listFirmware,
+    enabled: !!id,
+  });
+  const activeFw   = firmwareList.find(f => f.isActive);
+  const hasUpdate  = activeFw && device?.firmwareVersion && activeFw.version !== device?.firmwareVersion;
+
   async function handleExport(fmt) {
     setExporting(true);
     try {
@@ -234,7 +440,7 @@ export default function DeviceDetailPage() {
             {exporting ? 'Exporting…' : 'Export CSV'}
           </Btn>
           <Btn kind="secondary" size="sm" icon={IcoDownload} onClick={() => handleExport('xlsx')} disabled={exporting}>Excel</Btn>
-          <Btn kind="ghost" size="sm" icon={IcoSettings}>Configure</Btn>
+          <Btn kind="ghost" size="sm" icon={IcoSettings} onClick={() => setShowConfig(true)}>Configure</Btn>
         </div>
       </div>
 
@@ -391,8 +597,46 @@ export default function DeviceDetailPage() {
               ))}
             </div>
           </Card>
+
+          {/* OTA / Firmware */}
+          <Card title="Firmware OTA">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="row gap-2" style={{ justifyContent: 'space-between' }}>
+                <span className="text-xs muted">Current</span>
+                <span className="text-xs mono">{device.firmwareVersion || '—'}</span>
+              </div>
+              <div className="row gap-2" style={{ justifyContent: 'space-between' }}>
+                <span className="text-xs muted">Active release</span>
+                <span className="text-xs mono">{activeFw?.version || '—'}</span>
+              </div>
+              {hasUpdate && (
+                <div style={{ padding: '8px 10px', borderRadius: 6, background: 'color-mix(in oklch, var(--warn) 12%, transparent)', border: '1px solid color-mix(in oklch, var(--warn) 30%, transparent)' }}>
+                  <div className="text-xs" style={{ color: 'var(--warn-fg, #92400e)', fontWeight: 500 }}>
+                    Update available: {activeFw.version}
+                  </div>
+                  <div className="text-xs muted" style={{ marginTop: 2 }}>
+                    Device will pull update on next check-in via <code>/firmware/check</code>
+                  </div>
+                </div>
+              )}
+              {!activeFw && (
+                <div className="text-xs muted">No active firmware release. Add one in Settings → Firmware.</div>
+              )}
+              {activeFw && !hasUpdate && (
+                <div className="text-xs" style={{ color: 'var(--ok-soft-fg, #14532d)' }}>Device is up to date</div>
+              )}
+            </div>
+          </Card>
         </div>
       </div>
+
+      {showConfig && (
+        <ConfigureModal
+          device={device}
+          onClose={() => setShowConfig(false)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['device', id] })}
+        />
+      )}
     </div>
   );
 }

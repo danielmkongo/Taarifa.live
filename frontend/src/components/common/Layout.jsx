@@ -18,7 +18,7 @@ const PAGE_TITLES = {
   '/map':          ['Monitoring',   'Map'],
   '/alerts':       ['Monitoring',   'Alerts'],
   '/exports':      ['Monitoring',   'Reports'],
-  '/ecalendar':    ['E-Calendar',   'Dashboard'],
+  '/ecalendar':    ['e-Calendar',   'Dashboard'],
   '/users':        ['Organisation', 'Members'],
   '/settings':     ['Organisation', 'Settings'],
 };
@@ -91,7 +91,7 @@ export default function Layout() {
   let crumbs = PAGE_TITLES[location.pathname] || ['Monitoring', 'Overview'];
   if (isSignagePath(location.pathname)) {
     const tabLabels = { overview: 'Dashboard', content: 'Content', schedule: 'Schedule', screens: 'Screens' };
-    crumbs = ['E-Calendar', tabLabels[currentTab] || 'Dashboard'];
+    crumbs = ['e-Calendar', tabLabels[currentTab] || 'Dashboard'];
   }
 
   const initials = user?.fullName?.split(' ').map(s => s[0]).join('').slice(0, 2) || 'U';
@@ -137,7 +137,7 @@ export default function Layout() {
           <div className="ws-toggle__track">
             {[
               { key: 'monitoring', label: 'Monitoring', Icon: IcoZap },
-              { key: 'signage',    label: 'E-Calendar', Icon: IcoMonitor },
+              { key: 'signage',    label: 'e-Calendar', Icon: IcoMonitor },
             ].map(({ key, label, Icon }) => (
               <button key={key}
                 className={`ws-toggle__btn ${workspace === key ? 'active' : ''}`}
@@ -151,7 +151,7 @@ export default function Layout() {
 
         <nav className="nav">
           <div className="nav__section">
-            <div className="nav__heading">{workspace === 'monitoring' ? 'Monitoring' : 'E-Calendar'}</div>
+            <div className="nav__heading">{workspace === 'monitoring' ? 'Monitoring' : 'e-Calendar'}</div>
             {nav.map(n => (
               <a key={n.label}
                 className={`nav__item ${isNavActive(n) ? 'active' : ''}`}

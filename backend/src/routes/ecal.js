@@ -134,16 +134,30 @@ export default async function ecalRoutes(fastify) {
   });
 
   fastify.post('/devices', { preHandler: auth }, async (req, reply) => {
-    const { name, location, groupId } = req.body;
+    const { name, location, groupId, iotDeviceId } = req.body;
     if (!name) return reply.badRequest('name required');
     const { apiKey, apiKeyPrefix, apiKeyHash } = generateApiKey();
     const r = await col('ecalDevices').insertOne({
       orgId: req.user.orgId,
-      groupId: groupId ? new ObjectId(groupId) : null,
+      groupId:     groupId     ? new ObjectId(groupId)     : null,
+      iotDeviceId: iotDeviceId ? new ObjectId(iotDeviceId) : null,
       name, location, apiKeyHash, apiKeyPrefix,
-      status: 'offline', config: {}, createdAt: new Date(),
+      status: 'offline', config: {},
+      firmwareVersion: null, otaPending: false, otaVersion: null, otaUrl: null,
+      createdAt: new Date(),
     });
     return reply.code(201).send({ id: r.insertedId, apiKey });
+  });
+
+  // ── OTA push (dashboard → screen) ─────────────────────────────────────────
+  fastify.post('/devices/:id/ota', { preHandler: auth }, async (req, reply) => {
+    const { version, fileUrl } = req.body;
+    if (!version || !fileUrl) return reply.badRequest('version and fileUrl required');
+    await col('ecalDevices').updateOne(
+      { _id: new ObjectId(req.params.id), orgId: req.user.orgId },
+      { $set: { otaPending: true, otaVersion: version, otaUrl: fileUrl, updatedAt: new Date() } }
+    );
+    return { ok: true };
   });
 
   fastify.patch('/devices/:id', { preHandler: auth }, async (req) => {
@@ -251,7 +265,8 @@ export default async function ecalRoutes(fastify) {
     if (!device || device._id.toString() !== req.params.id) return reply.unauthorized();
 
     const feed = await buildFeed(device);
-    return { feed, syncedAt: new Date().toISOString(), deviceId: device._id };
+    const ota  = device.otaPending ? { version: device.otaVersion, fileUrl: device.otaUrl } : null;
+    return { feed, ota, syncedAt: new Date().toISOString(), deviceId: device._id };
   });
 
   // ── Device heartbeat (called by display hardware) ─────────────────────────
@@ -263,12 +278,24 @@ export default async function ecalRoutes(fastify) {
     const { resolution, firmware, nowPlaying } = req.body || {};
     const update = { lastSeenAt: new Date(), status: 'online' };
     if (resolution) update.resolution = resolution;
-    if (firmware)   update.firmware   = firmware;
+    if (firmware)   update.firmwareVersion = firmware;
     if (nowPlaying !== undefined) update.nowPlaying = nowPlaying;
+
+    // Clear OTA pending if device has already updated to the expected version
+    if (firmware && device.otaPending && firmware === device.otaVersion) {
+      update.otaPending = false;
+      update.otaVersion = null;
+      update.otaUrl     = null;
+    }
 
     await col('ecalDevices').updateOne({ _id: device._id }, { $set: update });
     const feed = await buildFeed(device);
-    return { ok: true, feed, syncedAt: new Date().toISOString() };
+
+    const ota = device.otaPending && !(firmware && firmware === device.otaVersion)
+      ? { version: device.otaVersion, fileUrl: device.otaUrl }
+      : null;
+
+    return { ok: true, feed, ota, syncedAt: new Date().toISOString() };
   });
 
   // ── Legacy sync endpoint ───────────────────────────────────────────────────

@@ -120,6 +120,7 @@ export const api = {
   createEcalDevice:   (body)   => request('POST',   '/ecal/devices', body),
   updateEcalDevice:   (id, b)  => request('PATCH',  `/ecal/devices/${id}`, b),
   deleteEcalDevice:   (id)     => request('DELETE', `/ecal/devices/${id}`),
+  otaEcalDevice:      (id, b)  => request('POST',   `/ecal/devices/${id}/ota`, b),
 
   // E-Calendar — content
   listEcalContent:    (p)      => request('GET',    '/ecal/content?' + new URLSearchParams(p || {})),

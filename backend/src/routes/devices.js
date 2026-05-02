@@ -10,7 +10,7 @@ export default async function deviceRoutes(fastify) {
   // GET /devices
   fastify.get('/', { preHandler }, async (req) => {
     const { groupId, status, page = 1, limit = 50 } = req.query;
-    const filter = { orgId: req.user.orgId };
+    const filter = { orgId: req.user.orgId, isActive: { $ne: false } };
     if (groupId) filter.groupId = new ObjectId(groupId);
     if (status) filter.status = status;
 

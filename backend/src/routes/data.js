@@ -87,7 +87,7 @@ export default async function dataRoutes(fastify) {
     const sensorKey = req.query.sensorKey || 'temperature';
     const from = new Date(Date.now() - 24 * 3600_000);
     const to = new Date();
-    const devices = await col('devices').find({ orgId: req.user.orgId, isActive: true }).toArray();
+    const devices = await col('devices').find({ orgId: req.user.orgId, isActive: { $ne: false } }).toArray();
     if (!devices.length) return {};
     const rows = await col('sensorReadings').aggregate([
       { $match: { 'meta.deviceId': { $in: devices.map(d => d._id) }, 'meta.sensorKey': sensorKey, timestamp: { $gte: from, $lte: to } } },
@@ -108,7 +108,7 @@ export default async function dataRoutes(fastify) {
     const from = new Date(Date.now() - 24 * 3600_000);
     const to = new Date();
     const BKT = 3_600_000;
-    const devices = await col('devices').find({ orgId: req.user.orgId, isActive: true }).toArray();
+    const devices = await col('devices').find({ orgId: req.user.orgId, isActive: { $ne: false } }).toArray();
     if (!devices.length) return { totalReadings: 0, hourlyActivity: [], groupSeries: [], deviceCount: 0 };
     const ids = devices.map(d => d._id);
 
