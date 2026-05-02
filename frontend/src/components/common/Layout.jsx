@@ -122,22 +122,20 @@ export default function Layout() {
           <div className="brand__sub">v3.0</div>
         </div>
 
-        <div className="workspace">
-          <button className="workspace__btn"
-            onClick={() => {
-              const next = workspace === 'monitoring' ? 'signage' : 'monitoring';
-              setWorkspace(next);
-              navigate(next === 'signage' ? '/ecalendar' : '/');
-            }}>
-            <div className={`workspace__icon workspace__icon--${workspace === 'monitoring' ? 'mon' : 'sig'}`}>
-              {workspace === 'monitoring' ? <IcoZap size={14} /> : <IcoMonitor size={14} />}
-            </div>
-            <div className="workspace__label">
-              <div>{workspace === 'monitoring' ? 'Monitoring' : 'Signage'}</div>
-              <small>{orgName}</small>
-            </div>
-            <IcoChevDown size={14} style={{ color: 'var(--fg-subtle)' }} />
-          </button>
+        <div className="ws-toggle">
+          <div className="ws-toggle__track">
+            {[
+              { key: 'monitoring', label: 'Monitoring', Icon: IcoZap },
+              { key: 'signage',    label: 'Signage',    Icon: IcoMonitor },
+            ].map(({ key, label, Icon }) => (
+              <button key={key}
+                className={`ws-toggle__btn ${workspace === key ? 'active' : ''}`}
+                onClick={() => { setWorkspace(key); navigate(key === 'signage' ? '/ecalendar' : '/'); }}>
+                <Icon size={13} />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <nav className="nav">

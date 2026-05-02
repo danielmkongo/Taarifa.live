@@ -18,25 +18,34 @@ function genSeries(n, base, noise, drift = 0, seed = 1) {
   return Array.from({ length: n }, (_, i) => { v += (r() - 0.5) * noise + drift / n; return { t: i, v: +v.toFixed(2) }; });
 }
 
-function KpiCard({ label, value, sub, trend, trendKind = 'ok', spark, sparkColor }) {
+function KpiCard({ label, value, sub, trend, trendKind = 'neutral', spark, sparkColor, accent }) {
   return (
-    <div className="card" style={{ padding: '14px 16px' }}>
-      <div className="text-xs muted">{label}</div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
-        <div>
-          <div className="text-2xl font-semibold tabnum tracking-tight">{value ?? '—'}</div>
-          <div className="text-xs subtle" style={{ marginTop: 2 }}>{sub}</div>
+    <div className="card" style={{
+      padding: '20px',
+      background: accent ? 'linear-gradient(135deg, var(--accent), oklch(0.48 0.28 295))' : undefined,
+      color: accent ? 'white' : undefined,
+      overflow: 'hidden', position: 'relative'
+    }}>
+      <div style={{ fontSize: 11.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em',
+        color: accent ? 'rgba(255,255,255,0.75)' : 'var(--fg-muted)', marginBottom: 8 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ fontSize: 42, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums', color: accent ? 'white' : 'var(--fg)' }}>
+          {value ?? '—'}
         </div>
         {spark && (
-          <div style={{ flex: 1, maxWidth: 100, marginLeft: 12 }}>
-            <Sparkline data={spark} color={sparkColor} height={36} fill />
+          <div style={{ flex: 1, maxWidth: 80 }}>
+            <Sparkline data={spark} color={accent ? 'rgba(255,255,255,0.6)' : sparkColor} height={40} fill />
           </div>
         )}
       </div>
+      {sub && <div style={{ marginTop: 6, fontSize: 12, color: accent ? 'rgba(255,255,255,0.7)' : 'var(--fg-muted)' }}>{sub}</div>}
       {trend && (
-        <div style={{ marginTop: 8, fontSize: 11.5, color: trendKind === 'ok' ? 'var(--ok-soft-fg)' : 'var(--danger-soft-fg)' }} className="row gap-1">
-          {trendKind === 'ok' ? <IcoArrowUp size={11} /> : <IcoArrowDown size={11} />}
-          <span>{trend}</span>
+        <div style={{ marginTop: 8, fontSize: 11.5, fontWeight: 500,
+          color: accent ? 'rgba(255,255,255,0.85)' : (trendKind === 'ok' ? 'var(--ok-soft-fg)' : trendKind === 'warn' ? 'var(--warn-soft-fg)' : 'var(--danger-soft-fg)') }}
+          className="row gap-1">
+          {trendKind === 'ok' ? <IcoArrowUp size={11} /> : trendKind === 'warn' ? null : <IcoArrowDown size={11} />}
+          {trend}
         </div>
       )}
     </div>
@@ -128,12 +137,12 @@ export default function DashboardPage() {
   }, [devList]);
 
   const greeting = {
-    admin:      { title: 'Operations overview',    sub: 'Health, alerts and uptime across the entire fleet.' },
-    org_admin:  { title: 'Operations overview',    sub: 'Health, alerts and uptime across the entire fleet.' },
-    super_admin:{ title: 'Platform overview',      sub: 'Health, alerts and uptime across all organisations.' },
-    manager:    { title: 'Today',                  sub: 'What needs your attention right now.' },
-    viewer:     { title: 'Environmental insights', sub: 'A snapshot of what your network is observing.' },
-  }[role] || { title: 'Overview', sub: '' };
+    admin:      { title: 'Operations overview' },
+    org_admin:  { title: 'Operations overview' },
+    super_admin:{ title: 'Platform overview'   },
+    manager:    { title: 'Today'               },
+    viewer:     { title: 'Environmental insights' },
+  }[role] || { title: 'Overview' };
 
   return (
     <div className="page">
@@ -141,12 +150,10 @@ export default function DashboardPage() {
         <div>
           <h1 className="page__title">{greeting.title}</h1>
           <div className="page__sub">
-            {greeting.sub}
-            <span className="mono subtle"> · live · {new Date().toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="mono subtle">{new Date().toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} · live</span>
           </div>
         </div>
         <div className="page__actions">
-          <Seg value="24h" onChange={() => {}} options={['1h','24h','7d','30d']} />
           <Btn kind="secondary" size="sm" icon={IcoRefresh} onClick={() => refetch()}>Refresh</Btn>
           {(role === 'admin' || role === 'org_admin') && (
             <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => navigate('/devices')}>Add device</Btn>
@@ -172,9 +179,10 @@ export default function DashboardPage() {
       )}
 
       <div className="grid grid-cols-4" style={{ marginBottom: 16 }}>
-        <KpiCard label="Devices online" value={`${online}`} sub={`of ${total} · ${offline} offline`}
+        <KpiCard label="Devices online" value={`${online}`} sub={`of ${total} total · ${offline} offline`}
           trend="+2 this week" trendKind="ok"
-          spark={genSeries(20, Math.max(online, 1), 0.5, 1, 41)} sparkColor="var(--ok)" />
+          spark={genSeries(20, Math.max(online, 1), 0.5, 1, 41)} sparkColor="var(--ok)"
+          accent={true} />
         <KpiCard label="Open alerts" value={openAlerts}
           sub={`${critical} critical · ${(alertEvents?.events || []).filter(e => e.severity === 'warning').length} warning`}
           trend={openAlerts === 0 ? 'All clear' : `−3 vs yesterday`}
@@ -188,9 +196,9 @@ export default function DashboardPage() {
           spark={genSeries(20, 99, 0.3, 0.2, 44)} sparkColor="var(--ok)" />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1.6fr 1fr', alignItems: 'stretch' }}>
+      <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', alignItems: 'stretch' }}>
         {/* Live observations */}
-        <Card title="Live observations" sub="Average temperature across active stations · 24h"
+        <Card title="Live observations" sub="Temperature · 24h"
           actions={<>
             <Seg value="temp" onChange={() => {}} options={[
               { value: 'temp',  label: 'Temperature' },
@@ -209,15 +217,14 @@ export default function DashboardPage() {
             {events.length === 0 ? (
               <Empty icon={null} title="All clear" hint="No open alerts. We'll let you know when something changes." />
             ) : events.slice(0, 5).map(e => (
-              <div key={e._id} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' }}>
-                <div style={{ marginTop: 4 }}><StatusDot status={e.severity} pulse={e.severity === 'critical'} /></div>
+              <div key={e._id} style={{ display: 'flex', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+                <StatusDot status={e.severity} pulse={e.severity === 'critical'} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{e.message}</div>
-                  <div className="text-xs muted" style={{ marginTop: 2 }}>
-                    <span className="mono">{e.deviceId?.toString().slice(-6)}</span> · {e.triggerValue != null ? `Value: ${e.triggerValue}` : ''}
-                  </div>
-                  <div className="text-xs subtle" style={{ marginTop: 2 }}>
-                    {e.createdAt ? new Date(e.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}{e.ruleId ? ` · rule "${e.ruleName || e.ruleId}"` : ''}
+                  <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.message}</div>
+                  <div className="text-xs muted row gap-1" style={{ marginTop: 1 }}>
+                    <span className="mono">{e.deviceId?.toString().slice(-6)}</span>
+                    <span>·</span>
+                    <span>{e.createdAt ? new Date(e.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                   </div>
                 </div>
                 {role !== 'viewer' && <Btn kind="ghost" size="sm" onClick={() => navigate('/alerts')}>Triage</Btn>}
@@ -230,8 +237,8 @@ export default function DashboardPage() {
         <Card title="Network activity" sub="Hourly readings ingested · last 24h">
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, padding: '4px 0 8px' }}>
             <div>
-              <div className="text-2xl font-semibold tabnum">{totalCount}</div>
-              <div className="text-xs muted">readings · 24h</div>
+              <div style={{ fontSize: 42, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{totalCount}</div>
+              <div className="text-xs muted" style={{ marginTop: 4 }}>readings · 24h</div>
             </div>
             <div style={{ flex: 1, paddingTop: 8 }}>
               <BarMini data={activityData} color="var(--accent)" height={56} />
@@ -243,26 +250,25 @@ export default function DashboardPage() {
         </Card>
 
         {/* Site health */}
-        <Card title="Site health" sub="Devices grouped by station type"
+        <Card title="Site health" sub="Devices grouped by station"
           actions={<Btn kind="ghost" size="sm" icon={IcoLayoutGrid} onClick={() => navigate('/devices')}>By group</Btn>}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {groupHealth.length === 0 ? (
               <div className="muted text-xs" style={{ padding: '16px 0', textAlign: 'center' }}>No devices yet</div>
-            ) : groupHealth.slice(0, 5).map(g => (
-              <div key={g.name} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: 'var(--bg-subtle)', display: 'grid', placeItems: 'center', color: 'var(--fg-muted)', flexShrink: 0 }}>
-                  <IcoPin size={13} />
+            ) : groupHealth.slice(0, 5).map(g => {
+              const allOnline = g.online === g.total && g.alert === 0;
+              const hasAlert  = g.alert > 0;
+              const dotColor  = hasAlert ? 'var(--danger)' : allOnline ? 'var(--ok)' : 'var(--warn)';
+              return (
+                <div key={g.name} style={{ display: 'flex', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 500 }}>{g.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                    {g.online}/{g.total}
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{g.name}</div>
-                  <div className="text-xs muted">{g.total} {g.total === 1 ? 'device' : 'devices'}</div>
-                </div>
-                <div className="row gap-2">
-                  {g.alert > 0 && <Badge kind="danger" dot="danger">{g.alert}</Badge>}
-                  <Badge kind="ok" dot="ok">{g.online}/{g.total}</Badge>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       </div>

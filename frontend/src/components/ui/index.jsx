@@ -1,4 +1,8 @@
 // Shared UI primitives matching the Taarifa design system
+import {
+  ResponsiveContainer, ComposedChart, AreaChart, BarChart,
+  Area, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+} from 'recharts';
 
 export function Btn({ kind = 'secondary', size, icon: Icon, iconRight: IconRight, children, full, ...p }) {
   const cls = ['btn', `btn--${kind}`];
@@ -64,104 +68,60 @@ export function Card({ title, sub, actions, children, padding = true, className 
 }
 
 export function Sparkline({ data, color = 'var(--accent)', height = 32, fill = false, animate = true }) {
-  if (!data || !data.length) return null;
-  const w = 100, h = 100;
-  const ys = data.map(d => d.v ?? d);
-  const min = Math.min(...ys), max = Math.max(...ys);
-  const span = max - min || 1;
-  const pts = ys.map((v, i) => {
-    const x = (i / (ys.length - 1)) * w;
-    const y = h - ((v - min) / span) * h;
-    return [x, y];
-  });
-  const path = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(' ');
-  const area = `${path} L${w},${h} L0,${h} Z`;
+  if (!data?.length) return null;
+  const d = data.map((p, i) => ({ i, v: typeof p === 'number' ? p : (p.v ?? 0) }));
+  const gId = `sg${color.replace(/[^a-z0-9]/gi, '').slice(0, 14)}`;
   return (
-    <svg className="spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ height }}>
-      {fill && <path d={area} fill={color} fillOpacity="0.12" />}
-      <path d={path} fill="none" stroke={color} strokeWidth="1.6" vectorEffect="non-scaling-stroke"
-        className={animate ? 'draw-in' : ''} />
-    </svg>
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={d} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+        <defs>
+          <linearGradient id={gId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%"  stopColor={color} stopOpacity={0.28} />
+            <stop offset="95%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5}
+          fill={fill ? `url(#${gId})` : 'none'} dot={false} isAnimationActive={animate} />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 
-export function LineChart({ series, height = 280, yLabel, showLegend = true, area = true, bar = false }) {
-  const w = 800, h = height;
-  const padL = 44, padR = 16, padT = 14, padB = 28;
-  const innerW = w - padL - padR, innerH = h - padT - padB;
-  if (!series || !series.length) return null;
-
-  const allPts = series.flatMap(s => s.data);
-  const xs = allPts.map(d => d.t);
-  const ys = allPts.map(d => d.v);
-  const xMin = Math.min(...xs), xMax = Math.max(...xs);
-  const yMin = Math.floor(Math.min(...ys) * 0.98);
-  const yMax = Math.ceil(Math.max(...ys) * 1.02);
-  const xSpan = xMax - xMin || 1, ySpan = yMax - yMin || 1;
-
-  const sx = x => padL + ((x - xMin) / xSpan) * innerW;
-  const sy = y => padT + (1 - (y - yMin) / ySpan) * innerH;
-
-  const yTicks = 5;
-  const yTickVals = Array.from({ length: yTicks }, (_, i) => yMin + (ySpan * i) / (yTicks - 1));
-  const xTickCount = 6;
-  const xTickIdx = Array.from({ length: xTickCount }, (_, i) =>
-    Math.floor((series[0].data.length - 1) * (i / (xTickCount - 1))));
-
+export function LineChart({ series, height = 260, yLabel, showLegend = true, area = false, bar = false }) {
+  if (!series?.length) return null;
+  const len = Math.max(...series.map(s => s.data?.length ?? 0));
+  if (len === 0) return null;
+  const chartData = Array.from({ length: len }, (_, i) => {
+    const row = { _i: i, _label: '' };
+    series.forEach(s => {
+      const pt = s.data?.[i];
+      if (pt) { row[s.name] = pt.v; if (pt.label) row._label = pt.label; }
+    });
+    return row;
+  });
+  const ttStyle = { background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' };
   return (
     <div>
-      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none" style={{ display: 'block' }}>
-        {yTickVals.map((v, i) => (
-          <g key={i}>
-            <line x1={padL} x2={w - padR} y1={sy(v)} y2={sy(v)} stroke="var(--border)" strokeWidth="1" />
-            <text x={padL - 8} y={sy(v) + 3} textAnchor="end" fontSize="10" fill="var(--fg-subtle)"
-              fontFamily="var(--font-mono)">{v.toFixed(1)}</text>
-          </g>
-        ))}
-        {xTickIdx.map((idx, k) => {
-          const d = series[0].data[idx]; if (!d) return null;
-          return (
-            <text key={k} x={sx(d.t)} y={h - 8} textAnchor="middle" fontSize="10"
-              fill="var(--fg-subtle)" fontFamily="var(--font-mono)">{d.label || ''}</text>
-          );
-        })}
-        {bar ? (
-          series.map((s) => {
-            const bw = Math.max(2, (innerW / (s.data.length || 1)) * 0.65);
-            return (
-              <g key={s.name}>
-                {s.data.map((d) => {
-                  const bh = Math.max(1, ((d.v - yMin) / ySpan) * innerH);
-                  return (
-                    <rect key={d.t}
-                      x={sx(d.t) - bw / 2}
-                      y={sy(d.v)}
-                      width={bw}
-                      height={bh}
-                      fill={s.color}
-                      fillOpacity="0.75"
-                    />
-                  );
-                })}
-              </g>
-            );
-          })
-        ) : (
-          series.map((s) => {
-            const path = s.data.map((d, i) => `${i === 0 ? 'M' : 'L'}${sx(d.t)},${sy(d.v)}`).join(' ');
-            const areaP = `${path} L${sx(s.data[s.data.length - 1].t)},${sy(yMin)} L${sx(s.data[0].t)},${sy(yMin)} Z`;
-            return (
-              <g key={s.name}>
-                {area && <path d={areaP} fill={s.color} fillOpacity="0.08" />}
-                <path d={path} fill="none" stroke={s.color} strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
-              </g>
-            );
-          })
-        )}
-        {yLabel && <text x={12} y={padT + 4} fontSize="10" fill="var(--fg-subtle)" fontFamily="var(--font-mono)">{yLabel}</text>}
-      </svg>
-      {showLegend && (
-        <div className="row gap-4" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+      <ResponsiveContainer width="100%" height={height}>
+        <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: yLabel ? 8 : 0 }}>
+          <CartesianGrid strokeDasharray="2 6" stroke="var(--border)" vertical={false} />
+          <XAxis dataKey="_label" tick={{ fontSize: 10, fill: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}
+            tickLine={false} axisLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}
+            tickLine={false} axisLine={false} width={yLabel ? 46 : 36}
+            label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', offset: 12, style: { fontSize: 10, fill: 'var(--fg-subtle)' } } : undefined} />
+          <Tooltip contentStyle={ttStyle} cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1 }}
+            labelStyle={{ color: 'var(--fg-muted)', fontSize: 11 }} />
+          {series.map(s => bar
+            ? <Bar key={s.name} dataKey={s.name} fill={s.color} fillOpacity={0.85} radius={[3,3,0,0]} maxBarSize={20} isAnimationActive={false} />
+            : area
+              ? <Area key={s.name} type="monotone" dataKey={s.name} stroke={s.color} strokeWidth={2} fill={s.color} fillOpacity={0.1} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} isAnimationActive={false} />
+              : <Line key={s.name} type="monotone" dataKey={s.name} stroke={s.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: s.color, strokeWidth: 0 }} isAnimationActive={false} />
+          )}
+        </ComposedChart>
+      </ResponsiveContainer>
+      {showLegend && series.length > 1 && (
+        <div className="row gap-4" style={{ flexWrap: 'wrap', marginTop: 8, paddingLeft: 44 }}>
           {series.map(s => (
             <div key={s.name} className="row gap-2 text-xs">
               <span style={{ width: 10, height: 2, background: s.color, borderRadius: 1, display: 'inline-block' }} />
@@ -175,19 +135,16 @@ export function LineChart({ series, height = 280, yLabel, showLegend = true, are
 }
 
 export function BarMini({ data, color = 'var(--accent)', height = 36 }) {
-  const w = 200, h = 100;
-  if (!data || !data.length) return null;
-  const max = Math.max(...data.map(d => d.v ?? d)) || 1;
-  const bw = w / data.length;
+  if (!data?.length) return null;
+  const d = data.map((p, i) => ({ i, v: typeof p === 'number' ? p : (p.v ?? 0), muted: !!(p?.muted) }));
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height, display: 'block' }}>
-      {data.map((d, i) => {
-        const v = d.v ?? d;
-        const bh = (v / max) * (h - 4);
-        return <rect key={i} x={i * bw + 1} y={h - bh} width={bw - 2} height={bh}
-          fill={color} opacity={d.muted ? 0.3 : 0.85} rx="1" />;
-      })}
-    </svg>
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={d} margin={{ top: 0, right: 0, bottom: 0, left: 0 }} barCategoryGap="12%">
+        <Bar dataKey="v" isAnimationActive={false} radius={[2,2,0,0]}>
+          {d.map((entry, i) => <Cell key={i} fill={color} fillOpacity={entry.muted ? 0.25 : 0.85} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
