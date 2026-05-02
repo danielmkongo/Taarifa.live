@@ -396,3 +396,63 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 0; }
 /* Google Maps */
 .gm-style .gm-style-iw-c { padding: 0 !important; }
 .gm-style .gm-style-iw-d { overflow: hidden !important; }
+
+/* ── Two-column main/side layout ──────────────────────────── */
+.layout-main-side { display: grid; grid-template-columns: 1fr 280px; gap: 16px; align-items: flex-start; }
+
+/* ── Mobile sidebar backdrop ──────────────────────────────── */
+.mob-backdrop { display: none; position: fixed; inset: 0; background: oklch(0 0 0 / 0.45); z-index: 199; backdrop-filter: blur(2px); }
+.mob-menu-btn { display: none !important; }
+
+/* ── Responsive breakpoints ───────────────────────────────── */
+@media (max-width: 1024px) {
+  .layout-main-side { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  :root { --topbar-h: 52px; }
+
+  /* App shell: single column, sidebar becomes a drawer */
+  .app { grid-template-columns: 1fr; }
+  .app__topbar { grid-column: 1; padding: 0 16px; gap: 8px; }
+  .app__main   { grid-row: 2; grid-column: 1; }
+
+  .app__sidebar {
+    position: fixed; inset: 0 auto 0 0;
+    width: 260px; z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-lg);
+  }
+  .app__sidebar--open { transform: translateX(0); }
+  .mob-backdrop { display: block; }
+  .mob-backdrop--hidden { display: none; }
+  .mob-menu-btn { display: inline-flex !important; }
+
+  /* Page padding */
+  .page { padding: 16px 16px 40px; }
+  .page__title { font-size: 22px; }
+  .page__head { flex-wrap: wrap; gap: 12px; }
+  .page__actions { flex-wrap: wrap; }
+
+  /* Grids collapse */
+  .grid-cols-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-3 { grid-template-columns: repeat(2, 1fr); }
+  .layout-main-side { grid-template-columns: 1fr; }
+
+  /* Controls row wrap */
+  .seg { flex-wrap: wrap; }
+
+  /* Card head wraps */
+  .card__head { flex-wrap: wrap; gap: 8px; }
+  .card__actions { margin-left: 0; flex-wrap: wrap; }
+
+  /* Search bar in topbar: shrink */
+  .search { min-width: 0; flex: 1; }
+  .topbar__crumbs { display: none; }
+
+  /* Ws-toggle labels hide on very small screens */
+  @media (max-width: 380px) {
+    .ws-toggle__btn { font-size: 11px; padding: 8px 4px; gap: 4px; }
+  }
+}

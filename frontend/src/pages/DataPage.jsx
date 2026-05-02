@@ -40,7 +40,6 @@ export default function DataPage() {
   const [selected, setSelected]         = useState(new Set(['temperature']));
   const [range, setRange]               = useState('24h');
   const [chartType, setChartType]       = useState('area');
-  const [view, setView]                 = useState('chart');
   const [tableSensor, setTableSensor]   = useState('temperature');
   const [customFrom, setCustomFrom]     = useState('');
   const [customTo, setCustomTo]         = useState('');
@@ -229,27 +228,18 @@ export default function DataPage() {
             </CtrlGroup>
           )}
 
-          <CtrlGroup label="Chart type" divider>
+          <CtrlGroup label="Chart type">
             <Seg value={chartType} onChange={setChartType} options={[
               { value: 'line', label: 'Line' },
               { value: 'area', label: 'Area' },
               { value: 'bar',  label: 'Bar'  },
             ]} />
           </CtrlGroup>
-
-          <CtrlGroup label="View">
-            <Seg value={view} onChange={setView} options={[
-              { value: 'chart', label: 'Chart' },
-              { value: 'table', label: 'Table' },
-              { value: 'both',  label: 'Both'  },
-            ]} />
-          </CtrlGroup>
         </div>
       </div>
 
       {/* ── Chart ──────────────────────────────────────────────── */}
-      {(view === 'chart' || view === 'both') && (
-        <Card
+      <Card
           title={device
             ? `${device.name} · ${sensorKeysList.map(k => SENSORS.find(s => s.key === k)?.label || k).join(', ')}`
             : 'Select a device'}
@@ -274,11 +264,9 @@ export default function DataPage() {
               showLegend={selected.size > 1} />
           )}
         </Card>
-      )}
 
       {/* ── Table ──────────────────────────────────────────────── */}
-      {(view === 'table' || view === 'both') && (
-        <Card
+      <Card
           title="Readings table"
           sub={tableReadings.length
             ? `${tableReadings.length} rows · ${isAggregate ? granularity + ' averages' : 'raw'}`
@@ -341,7 +329,6 @@ export default function DataPage() {
             </div>
           )}
         </Card>
-      )}
 
       {/* ── Stats (one row per selected sensor) ───────────────── */}
       {allStats.length > 0 && (

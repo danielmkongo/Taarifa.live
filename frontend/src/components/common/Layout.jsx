@@ -7,7 +7,7 @@ import {
   IcoHome, IcoCpu, IcoData, IcoMap, IcoBell, IcoFileChart,
   IcoMonitor, IcoCalendar, IcoUsers, IcoSettings,
   IcoSearch, IcoSun, IcoMoon, IcoBell2, IcoExt, IcoZap,
-  IcoLayers, IcoChevDown,
+  IcoLayers, IcoChevDown, IcoMenu, IcoX,
 } from '../ui/Icons.jsx';
 import { Btn, Seg } from '../ui/index.jsx';
 
@@ -35,10 +35,9 @@ export default function Layout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const [theme, setTheme] = useState(() => localStorage.getItem('taarifa-theme') || 'light');
-  const [workspace, setWorkspace] = useState(() =>
-    isSignagePath(location.pathname) ? 'signage' : 'monitoring'
-  );
+  const [theme, setTheme]           = useState(() => localStorage.getItem('taarifa-theme') || 'light');
+  const [workspace, setWorkspace]   = useState(() => isSignagePath(location.pathname) ? 'signage' : 'monitoring');
+  const [sidebarOpen, setSidebar]   = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -47,6 +46,7 @@ export default function Layout() {
 
   useEffect(() => {
     if (isSignagePath(location.pathname)) setWorkspace('signage');
+    setSidebar(false); // close drawer on navigation
   }, [location.pathname]);
 
   const { data: alertData } = useQuery({
@@ -114,8 +114,12 @@ export default function Layout() {
 
   return (
     <div className="app">
+      {/* Mobile backdrop */}
+      <div className={`mob-backdrop${sidebarOpen ? '' : ' mob-backdrop--hidden'}`}
+        onClick={() => setSidebar(false)} />
+
       {/* Sidebar */}
-      <aside className="app__sidebar">
+      <aside className={`app__sidebar${sidebarOpen ? ' app__sidebar--open' : ''}`}>
         <div className="brand">
           <div className="brand__mark">
             <svg width="18" height="14" viewBox="0 0 22 16" fill="none">
@@ -193,6 +197,10 @@ export default function Layout() {
       {/* Topbar */}
       <header className="app__topbar">
         <div className="topbar">
+          <button className="btn btn--ghost btn--icon btn--sm mob-menu-btn"
+            onClick={() => setSidebar(o => !o)} title="Menu">
+            {sidebarOpen ? <IcoX size={16} /> : <IcoMenu size={16} />}
+          </button>
           <div className="topbar__crumbs">
             {crumbs.map((c, i) => (
               <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
