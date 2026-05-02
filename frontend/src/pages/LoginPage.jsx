@@ -28,43 +28,58 @@ export default function LoginPage() {
   return (
     <div className="auth-bg">
       <div className="auth-card fade-in">
+        {/* Logo */}
         <div className="auth-logo">
-          <div className="auth-logo__mark">T</div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>Taarifa.live</div>
-            <div className="text-xs muted">Environmental Monitoring</div>
+          <div className="auth-logo__mark">
+            <svg width="22" height="17" viewBox="0 0 22 16" fill="none">
+              <path d="M1 8 L5 8 L7 2 L10 14 L12.5 8 L15 8 L16.5 5 L18 11 L19.5 8 L21 8"
+                stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div className="auth-logo__text">
+            <div className="auth-logo__name">Taarifa</div>
+            <div className="auth-logo__sub">Environmental Monitoring</div>
           </div>
         </div>
 
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>Sign in</div>
-          <div className="text-xs muted" style={{ marginTop: 3 }}>Enter your credentials to continue</div>
+        {/* Heading */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>
+            Welcome back
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--fg-muted)', marginTop: 6 }}>
+            Sign in to your account to continue
+          </div>
         </div>
 
         {error && <div className="error-banner">{error}</div>}
 
         <form onSubmit={handleSubmit}>
-          <div className="field" style={{ marginBottom: 12 }}>
-            <label className="field__label">Email</label>
-            <input type="email" required className="input"
+          <div className="field" style={{ marginBottom: 16 }}>
+            <label className="field__label" style={{ fontSize: 13, fontWeight: 500 }}>Email</label>
+            <input type="email" required className="input" style={{ height: 40, fontSize: 14 }}
               value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               placeholder="you@example.com" autoComplete="email" />
           </div>
-          <div className="field" style={{ marginBottom: 20 }}>
-            <label className="field__label">Password</label>
-            <input type="password" required className="input"
+          <div className="field" style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+              <label className="field__label" style={{ fontSize: 13, fontWeight: 500, marginBottom: 0 }}>Password</label>
+              <Link to="/forgot" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>Forgot password?</Link>
+            </div>
+            <input type="password" required className="input" style={{ height: 40, fontSize: 14 }}
               value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
               placeholder="••••••••" autoComplete="current-password" />
           </div>
           <button type="submit" disabled={loading}
-            className="btn btn--primary btn--full btn--lg" style={{ height: 36 }}>
+            className="btn btn--primary btn--full"
+            style={{ height: 42, fontSize: 14, fontWeight: 600, borderRadius: 'var(--radius)' }}>
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <div className="text-xs muted" style={{ marginTop: 16, textAlign: 'center' }}>
+        <div style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: 'var(--fg-muted)' }}>
           Don't have an account?{' '}
-          <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 500 }}>Create one</Link>
+          <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600 }}>Create one</Link>
         </div>
       </div>
     </div>

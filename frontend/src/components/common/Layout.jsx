@@ -117,9 +117,16 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="app__sidebar">
         <div className="brand">
-          <div className="brand__mark">T</div>
-          <div className="brand__name">Taarifa</div>
-          <div className="brand__sub">v3.0</div>
+          <div className="brand__mark">
+            <svg width="18" height="14" viewBox="0 0 22 16" fill="none">
+              <path d="M1 8 L5 8 L7 2 L10 14 L12.5 8 L15 8 L16.5 5 L18 11 L19.5 8 L21 8"
+                stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div className="brand__text">
+            <div className="brand__name">Taarifa</div>
+            <div className="brand__sub">Environmental</div>
+          </div>
         </div>
 
         <div className="ws-toggle">

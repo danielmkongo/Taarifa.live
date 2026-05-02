@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { subHours, format } from 'date-fns';
 import { api } from '../services/api.js';
 import { Btn, Seg, Card, LineChart, Empty, Spinner } from '../components/ui/index.jsx';
@@ -15,10 +15,10 @@ const SENSORS = [
 ];
 
 const PRESET_RANGES = [
-  { value: '1h',  label: '1h',  hours: 1   },
-  { value: '24h', label: '24h', hours: 24  },
-  { value: '7d',  label: '7d',  hours: 168 },
-  { value: '30d', label: '30d', hours: 720 },
+  { value: '1h',     label: '1h',    hours: 1   },
+  { value: '24h',    label: '24h',   hours: 24  },
+  { value: '7d',     label: '7d',    hours: 168 },
+  { value: '30d',    label: '30d',   hours: 720 },
   { value: 'custom', label: 'Custom', hours: null },
 ];
 
@@ -36,14 +36,15 @@ function granularityFor(range, fromIso, toIso) {
 const LABEL_FMT = { '1h': 'HH:mm:ss', '24h': 'HH:mm', '7d': 'MMM d', '30d': 'MMM d', custom: 'MMM d HH:mm' };
 
 export default function DataPage() {
-  const [deviceId, setDeviceId]     = useState('');
-  const [sensorKey, setSensorKey]   = useState('temperature');
-  const [range, setRange]           = useState('24h');
-  const [chartType, setChartType]   = useState('area');
-  const [view, setView]             = useState('chart');
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo]     = useState('');
-  const [exporting, setExporting]   = useState(false);
+  const [deviceId, setDeviceId]         = useState('');
+  const [selected, setSelected]         = useState(new Set(['temperature']));
+  const [range, setRange]               = useState('24h');
+  const [chartType, setChartType]       = useState('area');
+  const [view, setView]                 = useState('chart');
+  const [tableSensor, setTableSensor]   = useState('temperature');
+  const [customFrom, setCustomFrom]     = useState('');
+  const [customTo, setCustomTo]         = useState('');
+  const [exporting, setExporting]       = useState(false);
 
   const { data: devicesData, isLoading: loadingDevices } = useQuery({
     queryKey: ['devices'],
@@ -55,8 +56,21 @@ export default function DataPage() {
     if (devices.length > 0 && !deviceId) setDeviceId(devices[0]._id);
   }, [devices.length]);
 
-  const customReady = range !== 'custom' || (!!customFrom && !!customTo);
+  function toggleSensor(key) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(key) && next.size > 1) {
+        next.delete(key);
+        if (tableSensor === key) setTableSensor([...next][0]);
+      } else if (!next.has(key)) {
+        next.add(key);
+        setTableSensor(key);
+      }
+      return next;
+    });
+  }
 
+  const customReady = range !== 'custom' || (!!customFrom && !!customTo);
   const fromIso = range === 'custom'
     ? (customFrom ? new Date(customFrom).toISOString() : subHours(new Date(), 24).toISOString())
     : subHours(new Date(), PRESET_RANGES.find(r => r.value === range)?.hours ?? 24).toISOString();
@@ -66,44 +80,64 @@ export default function DataPage() {
 
   const granularity = granularityFor(range, fromIso, toIso);
   const isAggregate = granularity !== 'raw';
-
-  const { data: readingsData, isLoading: loadingChart } = useQuery({
-    queryKey: ['readings', deviceId, sensorKey, range, customFrom, customTo],
-    queryFn:  () => api.getReadings({ deviceId, sensorKey, from: fromIso, to: toIso, granularity, limit: 500 }),
-    enabled:  !!deviceId && customReady,
-  });
-
-  const readingsList = readingsData?.readings || [];
-  const sensor = SENSORS.find(s => s.key === sensorKey) || SENSORS[0];
+  const sensorKeysList = [...selected];
   const device = devices.find(d => d._id === deviceId);
   const labelFmt = LABEL_FMT[range] || 'HH:mm';
 
-  const series = useMemo(() => {
-    if (!readingsList.length) return [];
-    const step = Math.max(1, Math.ceil(readingsList.length / 6));
-    const data = readingsList.map((r, i) => ({
-      t: i,
-      v: r.value,
-      label: i % step === 0 ? format(new Date(r.timestamp), labelFmt) : '',
-    }));
-    return [{ name: `${device?.name || 'Device'} · ${sensor.label}`, color: sensor.color, data }];
-  }, [readingsList, sensorKey, deviceId, range]);
+  const sensorQueries = useQueries({
+    queries: sensorKeysList.map(sk => ({
+      queryKey: ['readings', deviceId, sk, range, customFrom, customTo],
+      queryFn:  () => api.getReadings({ deviceId, sensorKey: sk, from: fromIso, to: toIso, granularity, limit: 500 }),
+      enabled:  !!deviceId && customReady,
+    })),
+  });
 
-  const stats = useMemo(() => {
-    if (!readingsList.length) return null;
-    const vals = readingsList.map(r => r.value);
+  const loadingChart = sensorQueries.some(q => q.isLoading);
+
+  // Build chart series — one per selected sensor
+  const series = sensorKeysList.map((sk, qi) => {
+    const sensor = SENSORS.find(s => s.key === sk);
+    const list   = sensorQueries[qi]?.data?.readings || [];
+    if (!list.length) return null;
+    const step = Math.max(1, Math.ceil(list.length / 6));
+    return {
+      name:  sensor?.label || sk,
+      color: sensor?.color,
+      unit:  sensor?.unit,
+      data:  list.map((r, i) => ({
+        t: i, v: r.value,
+        label: i % step === 0 ? format(new Date(r.timestamp), labelFmt) : '',
+      })),
+    };
+  }).filter(Boolean);
+
+  // Per-sensor stats
+  const allStats = sensorKeysList.map((sk, qi) => {
+    const sensor = SENSORS.find(s => s.key === sk);
+    const list   = sensorQueries[qi]?.data?.readings || [];
+    if (!list.length) return null;
+    const vals = list.map(r => r.value);
     const avg  = vals.reduce((a, b) => a + b, 0) / vals.length;
-    return { avg: avg.toFixed(2), min: Math.min(...vals).toFixed(2), max: Math.max(...vals).toFixed(2), count: vals.length };
-  }, [readingsList]);
+    return {
+      key: sk, label: sensor?.label || sk, unit: sensor?.unit || '',
+      color: sensor?.color, avg: avg.toFixed(2),
+      min: Math.min(...vals).toFixed(2), max: Math.max(...vals).toFixed(2), count: vals.length,
+    };
+  }).filter(Boolean);
+
+  const tableSensorIdx  = sensorKeysList.indexOf(tableSensor);
+  const tableReadings   = (tableSensorIdx >= 0 ? sensorQueries[tableSensorIdx]?.data?.readings : null) || [];
+  const tableSensorMeta = SENSORS.find(s => s.key === tableSensor);
 
   async function handleExport(fmt) {
     if (!deviceId) return;
     setExporting(true);
     try {
-      const blob = await api.exportReadings({ deviceId, sensorKey, from: fromIso, to: toIso, format: fmt });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `${device?.name || 'export'}-${sensorKey}.${fmt}`; a.click();
+      const sk   = tableSensor || sensorKeysList[0];
+      const blob = await api.exportReadings({ deviceId, sensorKey: sk, from: fromIso, to: toIso, format: fmt });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `${device?.name || 'export'}-${sk}.${fmt}`; a.click();
       URL.revokeObjectURL(url);
     } finally { setExporting(false); }
   }
@@ -117,15 +151,17 @@ export default function DataPage() {
         </div>
         <div className="page__actions">
           <Btn kind="secondary" size="sm" icon={IcoDownload} onClick={() => handleExport('csv')}
-            disabled={!deviceId || exporting || !stats}>CSV</Btn>
+            disabled={!deviceId || exporting || allStats.length === 0}>CSV</Btn>
           <Btn kind="secondary" size="sm" icon={IcoDownload} onClick={() => handleExport('xlsx')}
-            disabled={!deviceId || exporting || !stats}>Excel</Btn>
+            disabled={!deviceId || exporting || allStats.length === 0}>Excel</Btn>
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
-        <div style={{ marginBottom: 18 }}>
+      {/* ── Controls ──────────────────────────────────────────── */}
+      <div className="card" style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
+
+        {/* Row 1 — Device */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
           <div className="ctrl-label">Device</div>
           <select className="select" style={{ maxWidth: 360, height: 36, fontSize: 13.5, fontWeight: 500 }}
             value={deviceId} onChange={e => setDeviceId(e.target.value)}>
@@ -135,22 +171,30 @@ export default function DataPage() {
           </select>
         </div>
 
-        <div style={{ marginBottom: 18 }}>
-          <div className="ctrl-label">Sensor</div>
+        {/* Row 2 — Sensors (distinct background) */}
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+          <div className="ctrl-label" style={{ marginBottom: 8 }}>
+            Sensors
+            <span style={{ marginLeft: 6, fontWeight: 400, textTransform: 'none', letterSpacing: 0,
+              color: 'var(--fg-subtle)', fontSize: 11 }}>
+              — click multiple to overlay on the chart
+            </span>
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {SENSORS.map(s => {
-              const on = sensorKey === s.key;
+              const on = selected.has(s.key);
               return (
-                <button key={s.key} onClick={() => setSensorKey(s.key)} style={{
+                <button key={s.key} onClick={() => toggleSensor(s.key)} style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '5px 13px', borderRadius: 9999, fontSize: 12.5, fontWeight: 600,
                   border: `1.5px solid ${on ? 'transparent' : 'var(--border)'}`,
-                  background: on ? s.color : 'transparent',
+                  background: on ? s.color : 'var(--bg-elev)',
                   color: on ? 'white' : 'var(--fg-muted)',
                   cursor: 'pointer', transition: 'all 0.15s',
+                  boxShadow: on ? `0 0 0 3px color-mix(in oklch, ${s.color} 30%, transparent)` : 'none',
                 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%',
-                    background: on ? 'rgba(255,255,255,0.75)' : s.color, flexShrink: 0 }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                    background: on ? 'rgba(255,255,255,0.8)' : s.color }} />
                   {s.label}
                 </button>
               );
@@ -158,55 +202,62 @@ export default function DataPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
-          <div>
-            <div className="ctrl-label">Time range</div>
-            <Seg value={range} onChange={v => { setRange(v); if (v !== 'custom') { setCustomFrom(''); setCustomTo(''); } }}
+        {/* Row 3 — Time / Chart / View (separated by dividers) */}
+        <div style={{ padding: '14px 20px', display: 'flex', flexWrap: 'wrap', gap: 0, alignItems: 'flex-end' }}>
+          <CtrlGroup label="Time range" divider>
+            <Seg value={range}
+              onChange={v => { setRange(v); if (v !== 'custom') { setCustomFrom(''); setCustomTo(''); } }}
               options={PRESET_RANGES} />
-          </div>
+          </CtrlGroup>
 
           {range === 'custom' && (
-            <>
-              <div>
-                <div className="ctrl-label">From</div>
-                <input type="datetime-local" className="select"
-                  style={{ height: 36, fontSize: 13, paddingRight: 8 }}
-                  value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+            <CtrlGroup label="Date range" divider>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div>
+                  <div className="ctrl-label" style={{ marginBottom: 4 }}>From</div>
+                  <input type="datetime-local" className="select"
+                    style={{ height: 34, fontSize: 13, paddingRight: 6 }}
+                    value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+                </div>
+                <div>
+                  <div className="ctrl-label" style={{ marginBottom: 4 }}>To</div>
+                  <input type="datetime-local" className="select"
+                    style={{ height: 34, fontSize: 13, paddingRight: 6 }}
+                    value={customTo} onChange={e => setCustomTo(e.target.value)} />
+                </div>
               </div>
-              <div>
-                <div className="ctrl-label">To</div>
-                <input type="datetime-local" className="select"
-                  style={{ height: 36, fontSize: 13, paddingRight: 8 }}
-                  value={customTo} onChange={e => setCustomTo(e.target.value)} />
-              </div>
-            </>
+            </CtrlGroup>
           )}
 
-          <div>
-            <div className="ctrl-label">Chart type</div>
+          <CtrlGroup label="Chart type" divider>
             <Seg value={chartType} onChange={setChartType} options={[
               { value: 'line', label: 'Line' },
               { value: 'area', label: 'Area' },
-              { value: 'bar',  label: 'Bar' },
+              { value: 'bar',  label: 'Bar'  },
             ]} />
-          </div>
+          </CtrlGroup>
 
-          <div>
-            <div className="ctrl-label">View</div>
+          <CtrlGroup label="View">
             <Seg value={view} onChange={setView} options={[
               { value: 'chart', label: 'Chart' },
               { value: 'table', label: 'Table' },
               { value: 'both',  label: 'Both'  },
             ]} />
-          </div>
+          </CtrlGroup>
         </div>
       </div>
 
-      {/* Chart */}
+      {/* ── Chart ──────────────────────────────────────────────── */}
       {(view === 'chart' || view === 'both') && (
         <Card
-          title={device ? `${device.name} · ${sensor.label}` : 'Select a device'}
-          sub={deviceId ? `${range === 'custom' && customFrom ? `${format(new Date(fromIso), 'MMM d')} – ${format(new Date(toIso), 'MMM d')}` : range} · ${readingsList.length} readings · ${sensor.unit}` : 'Choose a device above'}
+          title={device
+            ? `${device.name} · ${sensorKeysList.map(k => SENSORS.find(s => s.key === k)?.label || k).join(', ')}`
+            : 'Select a device'}
+          sub={deviceId
+            ? `${range === 'custom' && customFrom
+                ? `${format(new Date(fromIso), 'MMM d')} – ${format(new Date(toIso), 'MMM d')}`
+                : range} · ${series.reduce((n, s) => Math.max(n, s.data.length), 0)} readings`
+            : 'Choose a device above'}
           style={{ marginBottom: 16 }}>
           {!deviceId ? (
             <Empty icon={null} title="No device selected" hint="Pick a device from the selector above." />
@@ -215,19 +266,39 @@ export default function DataPage() {
           ) : loadingChart ? (
             <div style={{ height: 320, display: 'grid', placeItems: 'center' }}><Spinner /></div>
           ) : series.length === 0 ? (
-            <Empty icon={null} title="No data"
-              hint={`No ${sensor.label.toLowerCase()} readings for the selected range.`} />
+            <Empty icon={null} title="No data" hint="No readings for the selected sensors and range." />
           ) : (
-            <LineChart series={series} height={320} yLabel={sensor.unit}
-              area={chartType === 'area'} bar={chartType === 'bar'} showLegend={false} />
+            <LineChart series={series} height={320}
+              yLabel={selected.size === 1 ? SENSORS.find(s => s.key === [...selected][0])?.unit : undefined}
+              area={chartType === 'area'} bar={chartType === 'bar'}
+              showLegend={selected.size > 1} />
           )}
         </Card>
       )}
 
-      {/* Table */}
+      {/* ── Table ──────────────────────────────────────────────── */}
       {(view === 'table' || view === 'both') && (
-        <Card title="Readings table"
-          sub={readingsList.length ? `${readingsList.length} rows · ${isAggregate ? granularity + ' averages' : 'raw'}` : 'No data'}
+        <Card
+          title="Readings table"
+          sub={tableReadings.length
+            ? `${tableReadings.length} rows · ${isAggregate ? granularity + ' averages' : 'raw'}`
+            : 'No data'}
+          actions={sensorKeysList.length > 1 ? (
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {sensorKeysList.map(sk => {
+                const s = SENSORS.find(x => x.key === sk);
+                const on = tableSensor === sk;
+                return (
+                  <button key={sk} onClick={() => setTableSensor(sk)} style={{
+                    padding: '3px 10px', borderRadius: 9999, fontSize: 12, fontWeight: 600,
+                    border: `1.5px solid ${on ? 'transparent' : 'var(--border)'}`,
+                    background: on ? (s?.color || 'var(--accent)') : 'transparent',
+                    color: on ? 'white' : 'var(--fg-muted)', cursor: 'pointer',
+                  }}>{s?.label || sk}</button>
+                );
+              })}
+            </div>
+          ) : null}
           style={{ marginBottom: 16 }}>
           {!deviceId ? (
             <Empty icon={null} title="No device selected" hint="Pick a device from the selector above." />
@@ -235,21 +306,20 @@ export default function DataPage() {
             <Empty icon={null} title="Set date range" hint="Enter both From and To dates to load data." />
           ) : loadingChart ? (
             <div style={{ padding: 48, display: 'grid', placeItems: 'center' }}><Spinner /></div>
-          ) : readingsList.length === 0 ? (
-            <Empty icon={null} title="No data"
-              hint={`No ${sensor.label.toLowerCase()} readings for the selected range.`} />
+          ) : tableReadings.length === 0 ? (
+            <Empty icon={null} title="No data" hint="No readings for the selected range." />
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     <Th>Time</Th>
-                    <Th right>Value ({sensor.unit})</Th>
+                    <Th right>Value ({tableSensorMeta?.unit || ''})</Th>
                     {isAggregate && <><Th right>Min</Th><Th right>Max</Th><Th right>Count</Th></>}
                   </tr>
                 </thead>
                 <tbody>
-                  {[...readingsList].reverse().map((r, i) => (
+                  {[...tableReadings].reverse().map((r, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}>
                       <td style={{ padding: '7px 12px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-muted)' }}>
                         {format(new Date(r.timestamp), 'MMM d, yyyy HH:mm:ss')}
@@ -259,15 +329,9 @@ export default function DataPage() {
                       </td>
                       {isAggregate && (
                         <>
-                          <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                            {r.min != null ? r.min.toFixed(2) : '—'}
-                          </td>
-                          <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                            {r.max != null ? r.max.toFixed(2) : '—'}
-                          </td>
-                          <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                            {r.count}
-                          </td>
+                          <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.min != null ? r.min.toFixed(2) : '—'}</td>
+                          <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.max != null ? r.max.toFixed(2) : '—'}</td>
+                          <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.count}</td>
                         </>
                       )}
                     </tr>
@@ -279,23 +343,28 @@ export default function DataPage() {
         </Card>
       )}
 
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-4" style={{ gap: 12 }}>
-          {[
-            { label: 'Average', value: stats.avg, unit: sensor.unit },
-            { label: 'Minimum', value: stats.min, unit: sensor.unit },
-            { label: 'Maximum', value: stats.max, unit: sensor.unit },
-            { label: 'Readings', value: stats.count, unit: '' },
-          ].map(s => (
-            <div key={s.label} className="card" style={{ padding: '18px 20px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
-                color: 'var(--fg-muted)', marginBottom: 10 }}>{s.label}</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1,
-                  fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
-                {s.unit && <span style={{ fontSize: 13, color: 'var(--fg-muted)', fontWeight: 500 }}>{s.unit}</span>}
-              </div>
+      {/* ── Stats (one row per selected sensor) ───────────────── */}
+      {allStats.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {allStats.map(st => (
+            <div key={st.key} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              {[
+                { label: `${st.label} avg`, value: st.avg, unit: st.unit },
+                { label: 'Min',             value: st.min, unit: st.unit },
+                { label: 'Max',             value: st.max, unit: st.unit },
+                { label: 'Readings',        value: st.count, unit: '' },
+              ].map(s => (
+                <div key={s.label} className="card"
+                  style={{ padding: '16px 20px', borderLeft: `3px solid ${st.color}` }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                    letterSpacing: '0.07em', color: 'var(--fg-muted)', marginBottom: 8 }}>{s.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-0.03em',
+                      lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
+                    {s.unit && <span style={{ fontSize: 13, color: 'var(--fg-muted)', fontWeight: 500 }}>{s.unit}</span>}
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -304,13 +373,25 @@ export default function DataPage() {
   );
 }
 
+function CtrlGroup({ label, children, divider }) {
+  return (
+    <div style={{
+      paddingRight: divider ? 20 : 0,
+      marginRight:  divider ? 20 : 0,
+      borderRight:  divider ? '1px solid var(--border)' : 'none',
+    }}>
+      <div className="ctrl-label">{label}</div>
+      {children}
+    </div>
+  );
+}
+
 function Th({ children, right }) {
   return (
     <th style={{
-      textAlign: right ? 'right' : 'left',
-      padding: '7px 12px',
-      fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
-      color: 'var(--fg-muted)',
+      textAlign: right ? 'right' : 'left', padding: '7px 12px',
+      fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+      letterSpacing: '0.07em', color: 'var(--fg-muted)',
     }}>{children}</th>
   );
 }
