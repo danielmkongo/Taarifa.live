@@ -7,7 +7,8 @@
       "Bash(Select-Object FullName)",
       "Bash(dir \"C:\\\\Users\\\\danie\\\\Taarifa.live\\\\frontend\")",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "PowerShell(git -C \"C:\\\\Users\\\\danie\\\\Taarifa.live\" diff --stat)"
     ]
   },
   "hooks": {
