@@ -12,15 +12,15 @@ import {
 import { Btn, Seg } from '../ui/index.jsx';
 
 const PAGE_TITLES = {
-  '/':             ['Monitoring',     'Overview'],
-  '/devices':      ['Monitoring',     'Devices'],
-  '/data':         ['Monitoring',     'Data Explorer'],
-  '/map':          ['Monitoring',     'Map'],
-  '/alerts':       ['Monitoring',     'Alerts'],
-  '/exports':      ['Monitoring',     'Reports'],
-  '/ecalendar':    ['Signage',        'Overview'],
-  '/users':        ['Organisation',   'Members'],
-  '/settings':     ['Organisation',   'Settings'],
+  '/':             ['Monitoring',   'Overview'],
+  '/devices':      ['Monitoring',   'Devices'],
+  '/data':         ['Monitoring',   'Data Explorer'],
+  '/map':          ['Monitoring',   'Map'],
+  '/alerts':       ['Monitoring',   'Alerts'],
+  '/exports':      ['Monitoring',   'Reports'],
+  '/ecalendar':    ['E-Calendar',   'Dashboard'],
+  '/users':        ['Organisation', 'Members'],
+  '/settings':     ['Organisation', 'Settings'],
 };
 
 function isSignagePath(pathname) {
@@ -74,9 +74,9 @@ export default function Layout() {
 
   const currentTab = ecalTab(location.search);
   const signageNav = [
-    { to: '/ecalendar',                  label: 'Overview',   Icon: IcoHome,       tab: 'overview' },
+    { to: '/ecalendar',                  label: 'Dashboard',  Icon: IcoHome,       tab: 'overview' },
     { to: '/ecalendar?tab=content',      label: 'Content',    Icon: IcoLayers,     tab: 'content' },
-    { to: '/ecalendar?tab=campaigns',    label: 'Campaigns',  Icon: IcoCalendar,   tab: 'campaigns' },
+    { to: '/ecalendar?tab=schedule',     label: 'Schedule',   Icon: IcoCalendar,   tab: 'schedule' },
     { to: '/ecalendar?tab=screens',      label: 'Screens',    Icon: IcoMonitor,    tab: 'screens' },
   ];
 
@@ -90,8 +90,8 @@ export default function Layout() {
   // Topbar breadcrumb
   let crumbs = PAGE_TITLES[location.pathname] || ['Monitoring', 'Overview'];
   if (isSignagePath(location.pathname)) {
-    const tabLabels = { overview: 'Overview', content: 'Content', campaigns: 'Campaigns', screens: 'Screens' };
-    crumbs = ['Signage', tabLabels[currentTab] || 'Overview'];
+    const tabLabels = { overview: 'Dashboard', content: 'Content', schedule: 'Schedule', screens: 'Screens' };
+    crumbs = ['E-Calendar', tabLabels[currentTab] || 'Dashboard'];
   }
 
   const initials = user?.fullName?.split(' ').map(s => s[0]).join('').slice(0, 2) || 'U';
@@ -137,7 +137,7 @@ export default function Layout() {
           <div className="ws-toggle__track">
             {[
               { key: 'monitoring', label: 'Monitoring', Icon: IcoZap },
-              { key: 'signage',    label: 'Signage',    Icon: IcoMonitor },
+              { key: 'signage',    label: 'E-Calendar', Icon: IcoMonitor },
             ].map(({ key, label, Icon }) => (
               <button key={key}
                 className={`ws-toggle__btn ${workspace === key ? 'active' : ''}`}
@@ -151,7 +151,7 @@ export default function Layout() {
 
         <nav className="nav">
           <div className="nav__section">
-            <div className="nav__heading">{workspace === 'monitoring' ? 'Monitoring' : 'Digital signage'}</div>
+            <div className="nav__heading">{workspace === 'monitoring' ? 'Monitoring' : 'E-Calendar'}</div>
             {nav.map(n => (
               <a key={n.label}
                 className={`nav__item ${isNavActive(n) ? 'active' : ''}`}

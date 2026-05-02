@@ -1,239 +1,555 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api.js';
-import { format } from 'date-fns';
-import { Btn, Badge, StatusDot, Seg, Card, Empty } from '../components/ui/index.jsx';
-import { IcoPlus, IcoCalendar, IcoMonitor, IcoMore, IcoFilm, IcoArrowRight, IcoX, IcoCheck, IcoUpload } from '../components/ui/Icons.jsx';
+import { format, formatDistanceToNow, isAfter, isBefore } from 'date-fns';
+import { Btn, Badge, StatusDot, Card, Empty } from '../components/ui/index.jsx';
+import {
+  IcoPlus, IcoMonitor, IcoMore, IcoX, IcoCheck,
+  IcoArrowRight, IcoSettings, IcoRefresh,
+  IcoZap, IcoFlame,
+} from '../components/ui/Icons.jsx';
 
-// ─── Content Modal ────────────────────────────────────────────────────────────
-function ContentModal({ onClose, onSaved }) {
-  const [form, setForm] = useState({ title: '', contentType: 'announcement', body: '', imageUrl: '', durationS: 30 });
+// ─── Priority config ───────────────────────────────────────────────────────────
+const PRIORITIES = [
+  { value: 'critical', label: 'Critical',    color: 'var(--red,  #ef4444)', kind: 'error'   },
+  { value: 'high',     label: 'High',        color: 'var(--amber, #f59e0b)', kind: 'warning' },
+  { value: 'normal',   label: 'Normal',      color: 'var(--blue,  #3b82f6)', kind: 'info'    },
+  { value: 'low',      label: 'Low',         color: 'var(--fg-muted)',        kind: 'neutral' },
+];
+
+const CONTENT_TYPES = ['announcement', 'emergency', 'news', 'event', 'advertisement', 'weather'];
+const ZONES         = ['main', 'header', 'ticker', 'sidebar', 'footer'];
+
+function priorityBadge(p) {
+  const cfg = PRIORITIES.find(x => x.value === p) || PRIORITIES[2];
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 4,
+      background: `color-mix(in oklch, ${cfg.color} 14%, transparent)`,
+      color: cfg.color, border: `1px solid color-mix(in oklch, ${cfg.color} 30%, transparent)`,
+      textTransform: 'uppercase', letterSpacing: '0.04em',
+    }}>
+      {p === 'critical' && <IcoFlame size={10} />}
+      {p === 'high' && <IcoZap size={10} />}
+      {cfg.label}
+    </span>
+  );
+}
+
+function contentStatus(c) {
+  const now = new Date();
+  const start = c.schedule?.startAt ? new Date(c.schedule.startAt) : null;
+  const end   = c.schedule?.endAt   ? new Date(c.schedule.endAt)   : null;
+  if (!c.isActive) return { label: 'Inactive', kind: 'neutral' };
+  if (start && isAfter(start, now)) return { label: 'Scheduled', kind: 'info' };
+  if (end && isBefore(end, now))   return { label: 'Ended',     kind: 'neutral' };
+  return { label: 'Live', kind: 'ok', dot: true };
+}
+
+// ─── Content modal ─────────────────────────────────────────────────────────────
+function ContentModal({ onClose, onSaved, groups = [], devices = [], initial = null }) {
+  const [form, setForm] = useState(initial || {
+    title:     '', type: 'announcement', priority: 'normal', zone: 'main',
+    body:      '', mediaUrl: '',
+    targetScope: 'global', targetId: '',
+    startAt:   '', endAt: '',
+    durationS: 30,
+  });
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   async function submit(e) {
-    e.preventDefault(); setError('');
+    e.preventDefault();
+    setError(''); setSaving(true);
     try {
-      await api.createEcalContent(form);
-      onSaved(); onClose();
-    } catch (err) { setError(err.message); }
+      const payload = {
+        type:      form.type,
+        title:     form.title,
+        body:      form.body || undefined,
+        mediaUrl:  form.mediaUrl || undefined,
+        priority:  form.priority,
+        zone:      form.zone,
+        target:    { scope: form.targetScope, id: form.targetId || undefined },
+        schedule:  { startAt: form.startAt || undefined, endAt: form.endAt || undefined },
+        durationS: Number(form.durationS),
+      };
+      if (initial?._id) {
+        await api.updateEcalContent(initial._id, payload);
+      } else {
+        await api.createEcalContent(payload);
+      }
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">{initial ? 'Edit content' : 'New content item'}</div>
+          <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
+        </div>
+        <form onSubmit={submit}>
+          <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {error && <div className="error-banner">{error}</div>}
+
+            <div className="field">
+              <label className="field__label">Title *</label>
+              <input required className="input" value={form.title}
+                onChange={e => set('title', e.target.value)} />
+            </div>
+
+            <div className="row gap-3">
+              <div className="field" style={{ flex: 1 }}>
+                <label className="field__label">Type</label>
+                <select className="select" value={form.type} onChange={e => set('type', e.target.value)}>
+                  {CONTENT_TYPES.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="field" style={{ flex: 1 }}>
+                <label className="field__label">Priority</label>
+                <select className="select" value={form.priority} onChange={e => set('priority', e.target.value)}>
+                  {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <div className="field" style={{ flex: 1 }}>
+                <label className="field__label">Zone</label>
+                <select className="select" value={form.zone} onChange={e => set('zone', e.target.value)}>
+                  {ZONES.map(z => <option key={z}>{z}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="field">
+              <label className="field__label">Body text</label>
+              <textarea className="textarea" rows={3} value={form.body}
+                onChange={e => set('body', e.target.value)} />
+            </div>
+
+            <div className="field">
+              <label className="field__label">Media URL (optional)</label>
+              <input className="input" value={form.mediaUrl} placeholder="https://…"
+                onChange={e => set('mediaUrl', e.target.value)} />
+            </div>
+
+            <div className="row gap-3">
+              <div className="field" style={{ flex: 1 }}>
+                <label className="field__label">Target</label>
+                <select className="select" value={form.targetScope} onChange={e => { set('targetScope', e.target.value); set('targetId', ''); }}>
+                  <option value="global">All screens (global)</option>
+                  <option value="group">Device group</option>
+                  <option value="device">Specific screen</option>
+                </select>
+              </div>
+              {form.targetScope === 'group' && (
+                <div className="field" style={{ flex: 1 }}>
+                  <label className="field__label">Group</label>
+                  <select className="select" value={form.targetId} onChange={e => set('targetId', e.target.value)}>
+                    <option value="">— select —</option>
+                    {groups.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
+                  </select>
+                </div>
+              )}
+              {form.targetScope === 'device' && (
+                <div className="field" style={{ flex: 1 }}>
+                  <label className="field__label">Screen</label>
+                  <select className="select" value={form.targetId} onChange={e => set('targetId', e.target.value)}>
+                    <option value="">— select —</option>
+                    {devices.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="row gap-3">
+              <div className="field" style={{ flex: 1 }}>
+                <label className="field__label">Start date/time</label>
+                <input className="input" type="datetime-local" value={form.startAt}
+                  onChange={e => set('startAt', e.target.value)} />
+              </div>
+              <div className="field" style={{ flex: 1 }}>
+                <label className="field__label">End date/time (optional)</label>
+                <input className="input" type="datetime-local" value={form.endAt}
+                  onChange={e => set('endAt', e.target.value)} />
+              </div>
+              <div className="field" style={{ width: 100 }}>
+                <label className="field__label">Duration (s)</label>
+                <input className="input" type="number" min={5} max={300} value={form.durationS}
+                  onChange={e => set('durationS', e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <div className="modal__foot">
+            <Btn kind="secondary" type="button" onClick={onClose}>Cancel</Btn>
+            <Btn kind="primary" type="submit" icon={IcoCheck} disabled={saving}>
+              {initial ? 'Save changes' : 'Create'}
+            </Btn>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Screen modal ───────────────────────────────────────────────────────────────
+function ScreenModal({ onClose, onSaved, groups = [] }) {
+  const [form, setForm] = useState({ name: '', location: '', groupId: '' });
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setError(''); setSaving(true);
+    try {
+      const data = await api.createEcalDevice(form);
+      setResult(data);
+      onSaved();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (result) return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">Screen registered</div>
+          <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
+        </div>
+        <div className="modal__body">
+          <div style={{ background: 'var(--bg-subtle)', borderRadius: 8, padding: 16, marginBottom: 4 }}>
+            <div className="text-xs muted" style={{ marginBottom: 4 }}>API Key (shown once — copy now)</div>
+            <code style={{ wordBreak: 'break-all', fontSize: 12 }}>{result.apiKey}</code>
+          </div>
+          <div className="text-xs muted" style={{ marginTop: 8 }}>
+            Configure this key on the display device. It will authenticate with <code>x-api-key</code> header.
+          </div>
+        </div>
+        <div className="modal__foot">
+          <Btn kind="primary" onClick={onClose}>Done</Btn>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal__head">
-          <div className="modal__title">New content</div>
+          <div className="modal__title">Register new screen</div>
           <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
         </div>
-        <div className="modal__body">
-          {error && <div className="error-banner">{error}</div>}
-          <div className="field" style={{ marginBottom: 12 }}>
-            <label className="field__label">Title *</label>
-            <input required className="input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+        <form onSubmit={submit}>
+          <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {error && <div className="error-banner">{error}</div>}
+            <div className="field">
+              <label className="field__label">Screen name *</label>
+              <input required className="input" value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label className="field__label">Location</label>
+              <input className="input" value={form.location}
+                onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="e.g. Main lobby, Level 2" />
+            </div>
+            <div className="field">
+              <label className="field__label">Device group</label>
+              <select className="select" value={form.groupId}
+                onChange={e => setForm(f => ({ ...f, groupId: e.target.value }))}>
+                <option value="">No group</option>
+                {groups.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
+              </select>
+            </div>
           </div>
-          <div className="field" style={{ marginBottom: 12 }}>
-            <label className="field__label">Type</label>
-            <select className="select" value={form.contentType} onChange={e => setForm(f => ({ ...f, contentType: e.target.value }))}>
-              {['announcement','event','news','advertisement'].map(t => <option key={t}>{t}</option>)}
-            </select>
+          <div className="modal__foot">
+            <Btn kind="secondary" type="button" onClick={onClose}>Cancel</Btn>
+            <Btn kind="primary" type="submit" icon={IcoCheck} disabled={saving}>Register screen</Btn>
           </div>
-          <div className="field" style={{ marginBottom: 12 }}>
-            <label className="field__label">Body text</label>
-            <textarea className="textarea" value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} rows={3} />
-          </div>
-          <div className="field" style={{ marginBottom: 12 }}>
-            <label className="field__label">Image URL</label>
-            <input className="input" value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="https://…" />
-          </div>
-          <div className="field">
-            <label className="field__label">Duration (seconds)</label>
-            <input type="number" className="input" style={{ width: 120 }} value={form.durationS} onChange={e => setForm(f => ({ ...f, durationS: parseInt(e.target.value) }))} />
-          </div>
-        </div>
-        <div className="modal__foot">
-          <Btn kind="secondary" onClick={onClose}>Cancel</Btn>
-          <Btn kind="primary" icon={IcoCheck} onClick={submit}>Create</Btn>
-        </div>
+        </form>
       </div>
     </div>
   );
 }
 
-// ─── KPI tile ─────────────────────────────────────────────────────────────────
-function KpiTile({ label, value, sub }) {
+// ─── KPI tile ───────────────────────────────────────────────────────────────────
+function KpiTile({ label, value, sub, accent }) {
   return (
-    <div className="card" style={{ padding: 14 }}>
+    <div className="card" style={{ padding: 14, borderLeft: accent ? `3px solid ${accent}` : undefined }}>
       <div className="text-xs muted">{label}</div>
       <div className="text-2xl font-semibold tabnum tracking-tight" style={{ marginTop: 4 }}>{value ?? '—'}</div>
-      {sub && <div className="text-xs subtle">{sub}</div>}
+      {sub && <div className="text-xs subtle" style={{ marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
 
-// ─── Sub-pages ────────────────────────────────────────────────────────────────
-function OverviewTab({ schedules, screens, setShowModal }) {
-  const liveCount  = schedules.filter(s => s.status === 'live' || s.isActive).length;
-  const onlineScreens = screens.filter(s => s.status === 'online').length;
+// ─── Overview tab ───────────────────────────────────────────────────────────────
+function OverviewTab({ stats, content, screens, onNewContent }) {
+  const now = new Date();
+  const liveContent = content.filter(c => {
+    if (!c.isActive) return false;
+    const start = c.schedule?.startAt ? new Date(c.schedule.startAt) : null;
+    const end   = c.schedule?.endAt   ? new Date(c.schedule.endAt)   : null;
+    if (start && isAfter(start, now)) return false;
+    if (end   && isBefore(end, now))  return false;
+    return true;
+  });
+  const onlineScreens = screens.filter(s => s.status === 'online');
+
+  const TYPE_HUE = { announcement: 210, emergency: 0, news: 155, event: 280, advertisement: 40, weather: 200 };
 
   return (
     <>
       <div className="grid grid-cols-4" style={{ marginBottom: 16 }}>
-        <KpiTile label="Live now"        value={liveCount}                              sub="campaigns broadcasting" />
-        <KpiTile label="Screens online"  value={`${onlineScreens}/${screens.length}`}  sub="active displays" />
-        <KpiTile label="Scheduled"       value={schedules.filter(s => s.status === 'scheduled').length} sub="next 30 days" />
-        <KpiTile label="Impressions · 24h" value="12,486"                              sub="estimated views" />
+        <KpiTile label="Live content"    value={liveContent.length}                             sub="items broadcasting now"    accent={liveContent.length ? 'var(--green, #22c55e)' : undefined} />
+        <KpiTile label="Screens online"  value={`${onlineScreens.length}/${screens.length}`}    sub="connected displays"        accent={onlineScreens.length ? 'var(--blue, #3b82f6)' : undefined} />
+        <KpiTile label="Critical alerts" value={stats?.criticalContent ?? '—'}                  sub="active critical items"     accent={stats?.criticalContent ? '#ef4444' : undefined} />
+        <KpiTile label="Total content"   value={stats?.activeContent ?? '—'}                    sub="scheduled items" />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1.4fr 1fr' }}>
-        <Card title="Now broadcasting" sub="Active campaigns"
-          actions={<Btn kind="ghost" size="sm" iconRight={IcoArrowRight}>All campaigns</Btn>}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {schedules.length === 0 ? (
-              <Empty icon={IcoFilm} title="No active campaigns" hint="Schedule content to get started." />
-            ) : schedules.filter(s => s.status === 'live' || s.isActive).slice(0, 5).map((s, i) => (
-              <div key={s._id || i} className="row gap-3" style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ width: 60, height: 36, background: 'var(--bg-subtle)', borderRadius: 6, display: 'grid', placeItems: 'center', color: 'var(--fg-subtle)', flexShrink: 0 }}>
-                  <IcoFilm size={16} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="row gap-2">
-                    <span style={{ fontWeight: 500 }}>{s.title || s.name || 'Campaign'}</span>
-                    <Badge kind="ok" dot="ok">Live</Badge>
-                    <Badge kind="outline">{s.type || 'announcement'}</Badge>
+      <div className="grid" style={{ gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
+        <Card title="Broadcasting now" sub="Active and upcoming content"
+          actions={<Btn kind="ghost" size="sm" iconRight={IcoArrowRight} onClick={onNewContent}>Add content</Btn>}>
+          {liveContent.length === 0 ? (
+            <Empty icon={IcoMonitor} title="Nothing broadcasting" hint="Schedule content to get started."
+              action={<Btn kind="primary" size="sm" icon={IcoPlus} onClick={onNewContent}>New content</Btn>} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {liveContent.slice(0, 6).map((c, i) => {
+                const hue = TYPE_HUE[c.type] ?? 200;
+                return (
+                  <div key={c._id || i} className="row gap-3" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{
+                      width: 48, height: 32, borderRadius: 6, flexShrink: 0,
+                      background: `linear-gradient(135deg, oklch(0.80 0.14 ${hue}), oklch(0.60 0.20 ${(hue + 50) % 360}))`,
+                    }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="row gap-2" style={{ flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 500, fontSize: 13 }}>{c.title}</span>
+                        {priorityBadge(c.priority)}
+                        <Badge kind="outline">{c.zone}</Badge>
+                      </div>
+                      <div className="text-xs muted" style={{ marginTop: 2 }}>
+                        {c.type} · {c.durationS}s · {c.target?.scope === 'global' ? 'All screens' : c.target?.scope}
+                        {c.schedule?.endAt && ` · ends ${format(new Date(c.schedule.endAt), 'MMM d')}`}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs muted" style={{ marginTop: 3 }}>
-                    {s.startsAt ? format(new Date(s.startsAt), 'MMM d') : 'Now'} → {s.endsAt ? format(new Date(s.endsAt), 'MMM d') : 'Ongoing'} · {s.contentCount || '—'} items
-                  </div>
-                </div>
-                <Btn kind="ghost" size="sm" icon={IcoMore} />
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
 
-        <Card title="Screens" sub="Real-time status">
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {screens.length === 0 ? (
-              <Empty icon={IcoMonitor} title="No screens" hint="Pair a display to get started." />
-            ) : screens.slice(0, 8).map((s, i) => (
-              <div key={s._id || i} className="row gap-2" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <StatusDot status={s.status || 'offline'} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{s.name}</div>
-                  <div className="text-xs muted">{s.groupName || s.group || '—'} · {s.resolution || '1920×1080'}</div>
+        <Card title="Screens" sub="Real-time heartbeat status">
+          {screens.length === 0 ? (
+            <Empty icon={IcoMonitor} title="No screens registered" hint="Register a display to get started." />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {screens.slice(0, 8).map((s, i) => (
+                <div key={s._id || i} className="row gap-2" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <StatusDot status={s.status || 'offline'} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{s.name}</div>
+                    <div className="text-xs muted">{s.groupName || '—'} · {s.location || 'No location'}</div>
+                  </div>
+                  <span className="text-xs subtle mono">
+                    {s.lastSeenAt ? formatDistanceToNow(new Date(s.lastSeenAt), { addSuffix: true }) : '—'}
+                  </span>
                 </div>
-                <span className="text-xs subtle mono">
-                  {s.lastSeenAt ? format(new Date(s.lastSeenAt), 'HH:mm') : '—'}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </>
   );
 }
 
-function ContentTab({ contents, setShowModal }) {
-  const hues = [200, 155, 60, 22, 130, 280, 240, 320];
-  return (
-    <div className="grid grid-cols-4">
-      {contents.length === 0 ? (
-        <div style={{ gridColumn: '1 / -1' }}>
-          <Card><Empty icon={IcoFilm} title="No content yet" hint="Create your first content item."
-            action={<Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowModal(true)}>New content</Btn>} /></Card>
-        </div>
-      ) : contents.map((c, i) => {
-        const hue = hues[i % hues.length];
-        return (
-          <div key={c._id || i} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ aspectRatio: '16/9', background: `linear-gradient(135deg, oklch(0.86 0.12 ${hue}), oklch(0.64 0.18 ${(hue + 40) % 360}))`, position: 'relative' }}>
-              <div style={{ position: 'absolute', top: 8, left: 8 }}>
-                <Badge kind="neutral">{c.contentType}</Badge>
-              </div>
-              <div style={{ position: 'absolute', bottom: 10, left: 10, right: 10, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{c.title}</div>
-                {c.body && <div style={{ fontSize: 11.5, opacity: 0.9 }}>{c.body.slice(0, 60)}</div>}
-              </div>
-            </div>
-            <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="text-xs muted">{c.durationS ? `${c.durationS}s` : '—'}</span>
-              <Btn kind="ghost" size="sm" icon={IcoMore} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+// ─── Content tab ────────────────────────────────────────────────────────────────
+function ContentTab({ content, onNew, onEdit, onDelete, groups, devices }) {
+  const [filter, setFilter] = useState('all');
+  const TYPE_HUE = { announcement: 210, emergency: 0, news: 155, event: 280, advertisement: 40, weather: 200 };
 
-function CampaignsTab({ schedules }) {
-  const COLORS = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c5)', 'var(--c4)', 'var(--c6)'];
-  const DAY_COUNT = 14;
-  const today = new Date();
+  const filtered = filter === 'all' ? content : content.filter(c => c.priority === filter);
 
   return (
     <>
-      <Card title={`${today.toLocaleString('en-GB', { month: 'long', year: 'numeric' })} · ${DAY_COUNT} days`}
-        sub="All device groups"
-        actions={<Seg value="month" onChange={() => {}} options={['week','month','quarter']} />}
-        style={{ marginBottom: 16 }}>
-        <div style={{ position: 'relative', paddingBottom: 8 }}>
-          <div className="row" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 8 }}>
-            {Array.from({ length: DAY_COUNT }, (_, i) => (
-              <div key={i} style={{ flex: 1, fontSize: 10.5, color: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>{today.getDate() + i}</div>
-            ))}
-          </div>
-          {schedules.slice(0, 4).map((s, i) => {
-            const live = s.status === 'live';
+      <div className="row gap-2" style={{ marginBottom: 16, flexWrap: 'wrap' }}>
+        {['all', ...PRIORITIES.map(p => p.value)].map(v => (
+          <button key={v}
+            className={`btn btn--sm ${filter === v ? 'btn--secondary' : 'btn--ghost'}`}
+            onClick={() => setFilter(v)}>
+            {v === 'all' ? 'All' : PRIORITIES.find(p => p.value === v)?.label}
+            <span className="text-xs muted" style={{ marginLeft: 4 }}>
+              {v === 'all' ? content.length : content.filter(c => c.priority === v).length}
+            </span>
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <Btn kind="primary" size="sm" icon={IcoPlus} onClick={onNew}>New content</Btn>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card><Empty icon={IcoMonitor} title="No content" hint="Create your first content item."
+          action={<Btn kind="primary" size="sm" icon={IcoPlus} onClick={onNew}>New content</Btn>} /></Card>
+      ) : (
+        <div className="grid grid-cols-4">
+          {filtered.map((c, i) => {
+            const hue = TYPE_HUE[c.type] ?? 200;
+            const status = contentStatus(c);
             return (
-              <div key={s._id || i} style={{ display: 'flex', marginBottom: 6, alignItems: 'center' }}>
-                <div style={{ width: '100%', position: 'relative', height: 26 }}>
-                  <div style={{
-                    position: 'absolute',
-                    left: `${(i * 1.5 / DAY_COUNT) * 100}%`,
-                    width: `${Math.min(((s.contentCount || 4) / DAY_COUNT) * 100 + 20, 80)}%`,
-                    top: 0, bottom: 0,
-                    background: `color-mix(in oklch, ${COLORS[i % COLORS.length]} 25%, transparent)`,
-                    borderLeft: `3px solid ${COLORS[i % COLORS.length]}`,
-                    borderRadius: 4,
-                    display: 'flex', alignItems: 'center', padding: '0 8px',
-                    fontSize: 12, fontWeight: 500,
-                    overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-                  }}>
-                    {live && <span className="dot dot--ok" style={{ marginRight: 6 }} />}
-                    {s.title}
+              <div key={c._id || i} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ aspectRatio: '16/9', background: `linear-gradient(135deg, oklch(0.82 0.14 ${hue}), oklch(0.60 0.22 ${(hue + 50) % 360}))`, position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: 7, left: 8, display: 'flex', gap: 4 }}>
+                    {priorityBadge(c.priority)}
+                    <Badge kind="neutral">{c.zone}</Badge>
+                  </div>
+                  <div style={{ position: 'absolute', bottom: 8, left: 10, right: 10, color: 'white', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>{c.title}</div>
+                    {c.body && <div style={{ fontSize: 11, opacity: 0.88, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.body}</div>}
+                  </div>
+                </div>
+                <div style={{ padding: '8px 12px' }}>
+                  <div className="row gap-2" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="row gap-2">
+                      <Badge kind={status.kind} dot={status.dot ? status.kind : undefined}>{status.label}</Badge>
+                      <Badge kind="outline">{c.type}</Badge>
+                    </div>
+                    <span className="text-xs muted">{c.durationS}s</span>
+                  </div>
+                  <div className="text-xs muted" style={{ marginTop: 4 }}>
+                    {c.target?.scope === 'global' ? 'All screens' : c.target?.scope}
+                    {c.schedule?.endAt ? ` · ends ${format(new Date(c.schedule.endAt), 'MMM d')}` : ' · no expiry'}
+                  </div>
+                  <div className="row gap-1" style={{ marginTop: 6, justifyContent: 'flex-end' }}>
+                    <Btn kind="ghost" size="sm" onClick={() => onEdit(c)}>Edit</Btn>
+                    <Btn kind="ghost" size="sm" onClick={() => onDelete(c._id)}>Delete</Btn>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-      </Card>
+      )}
+    </>
+  );
+}
 
-      <Card padding={false} title="All campaigns" sub={`${schedules.length} total`}>
+// ─── Schedule tab ───────────────────────────────────────────────────────────────
+function ScheduleTab({ content }) {
+  const now = new Date();
+  const sorted = [...content].sort((a, b) => {
+    const pa = { critical: 0, high: 1, normal: 2, low: 3 }[a.priority] ?? 9;
+    const pb = { critical: 0, high: 1, normal: 2, low: 3 }[b.priority] ?? 9;
+    return pa - pb;
+  });
+
+  const PRI_COLOR = { critical: '#ef4444', high: '#f59e0b', normal: '#3b82f6', low: 'var(--fg-subtle)' };
+
+  return (
+    <>
+      <Card padding={false} title="Content schedule" sub={`${content.length} items · sorted by priority`}>
         <table className="table">
-          <thead><tr><th>Title</th><th>Type</th><th>Status</th><th>Window</th><th>Items</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Priority</th><th>Title</th><th>Type</th><th>Zone</th>
+              <th>Target</th><th>Window</th><th>Duration</th><th>Status</th><th></th>
+            </tr>
+          </thead>
           <tbody>
-            {schedules.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>No campaigns yet</td></tr>
-            ) : schedules.map(s => (
+            {sorted.length === 0 ? (
+              <tr><td colSpan={9} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>No content yet</td></tr>
+            ) : sorted.map(c => {
+              const status = contentStatus(c);
+              const start  = c.schedule?.startAt ? new Date(c.schedule.startAt) : null;
+              const end    = c.schedule?.endAt   ? new Date(c.schedule.endAt)   : null;
+              return (
+                <tr key={c._id}>
+                  <td>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 3, height: 18, borderRadius: 2, background: PRI_COLOR[c.priority] || 'var(--fg-subtle)', flexShrink: 0 }} />
+                      {priorityBadge(c.priority)}
+                    </span>
+                  </td>
+                  <td style={{ fontWeight: 500, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</td>
+                  <td><Badge kind="outline">{c.type}</Badge></td>
+                  <td><Badge kind="neutral">{c.zone}</Badge></td>
+                  <td className="text-xs muted">
+                    {c.target?.scope === 'global' ? 'Global' : c.target?.scope}
+                  </td>
+                  <td className="muted text-xs mono">
+                    {start ? format(start, 'MMM d') : '—'}
+                    {' → '}
+                    {end ? format(end, 'MMM d') : '∞'}
+                  </td>
+                  <td className="muted text-xs">{c.durationS}s</td>
+                  <td>
+                    <Badge kind={status.kind} dot={status.dot ? status.kind : undefined}>{status.label}</Badge>
+                  </td>
+                  <td><Btn kind="ghost" size="sm" icon={IcoMore} /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Card>
+    </>
+  );
+}
+
+// ─── Screens tab ────────────────────────────────────────────────────────────────
+function ScreensTab({ screens, onNew, onDelete }) {
+  return (
+    <>
+      <div className="row" style={{ marginBottom: 12, justifyContent: 'flex-end' }}>
+        <Btn kind="primary" size="sm" icon={IcoPlus} onClick={onNew}>Register screen</Btn>
+      </div>
+      <Card padding={false}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th></th><th>Screen</th><th>Group</th><th>Location</th>
+              <th>Now playing</th><th>Last heartbeat</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {screens.length === 0 ? (
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>
+                No screens registered — register a display device to get started
+              </td></tr>
+            ) : screens.map(s => (
               <tr key={s._id}>
-                <td style={{ fontWeight: 500 }}>{s.title}</td>
-                <td><Badge kind="outline">{s.type || '—'}</Badge></td>
+                <td><StatusDot status={s.status || 'offline'} /></td>
                 <td>
-                  {s.status === 'live'      && <Badge kind="ok" dot="ok">Live</Badge>}
-                  {s.status === 'scheduled' && <Badge kind="info">Scheduled</Badge>}
-                  {s.status === 'draft'     && <Badge kind="neutral">Draft</Badge>}
-                  {s.status === 'ended'     && <Badge kind="neutral">Ended</Badge>}
-                  {!s.status && (s.isActive ? <Badge kind="ok" dot="ok">Live</Badge> : <Badge kind="neutral">Inactive</Badge>)}
+                  <div style={{ fontWeight: 500 }}>{s.name}</div>
+                  <div className="text-xs mono muted">{s.apiKeyPrefix}…</div>
                 </td>
+                <td><Badge kind="outline">{s.groupName || '—'}</Badge></td>
+                <td className="muted text-xs">{s.location || '—'}</td>
+                <td className="muted text-xs">{s.nowPlaying || (s.status === 'online' ? 'Syncing…' : '—')}</td>
                 <td className="muted text-xs">
-                  {s.startsAt ? format(new Date(s.startsAt), 'MMM d') : '—'} → {s.endsAt ? format(new Date(s.endsAt), 'MMM d') : '—'}
+                  {s.lastSeenAt
+                    ? <>{format(new Date(s.lastSeenAt), 'MMM d, HH:mm')} <span className="subtle">({formatDistanceToNow(new Date(s.lastSeenAt), { addSuffix: true })})</span></>
+                    : 'Never'}
                 </td>
-                <td className="muted">{s.contentCount || '—'}</td>
-                <td><Btn kind="ghost" size="sm" icon={IcoMore} /></td>
+                <td>
+                  <div className="row gap-1">
+                    <Btn kind="ghost" size="sm" icon={IcoSettings} title="Configure" />
+                    <Btn kind="ghost" size="sm" icon={IcoMore} title="More" />
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -243,66 +559,47 @@ function CampaignsTab({ schedules }) {
   );
 }
 
-function ScreensTab({ screens }) {
-  return (
-    <Card padding={false}>
-      <table className="table">
-        <thead><tr><th></th><th>Screen</th><th>Group</th><th>Resolution</th><th>Now playing</th><th>Last seen</th><th></th></tr></thead>
-        <tbody>
-          {screens.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>No screens registered</td></tr>
-          ) : screens.map(s => (
-            <tr key={s._id}>
-              <td><StatusDot status={s.status || 'offline'} /></td>
-              <td>
-                <span style={{ fontWeight: 500 }}>{s.name}</span>
-                <div className="text-xs mono muted">{s._id?.toString().slice(-8)}</div>
-              </td>
-              <td><Badge kind="outline">{s.groupName || s.group || '—'}</Badge></td>
-              <td className="mono text-xs">{s.resolution || '1920×1080'}</td>
-              <td className="muted">{s.status === 'online' ? 'World Environment Day 2026' : '—'}</td>
-              <td className="muted text-xs">{s.lastSeenAt ? format(new Date(s.lastSeenAt), 'MMM d, HH:mm') : '—'}</td>
-              <td><Btn kind="ghost" size="sm" icon={IcoMore} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  );
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Main page ──────────────────────────────────────────────────────────────────
 export default function ECalendarPage() {
   const qc = useQueryClient();
   const location = useLocation();
-  const [showModal, setShowModal] = useState(false);
-
   const tab = new URLSearchParams(location.search).get('tab') || 'overview';
 
-  const { data: contentsData } = useQuery({
-    queryKey: ['ecal-content'],
-    queryFn: () => api.listEcalContent({ limit: 50 }),
-  });
-  const { data: schedulesData } = useQuery({
-    queryKey: ['ecal-campaigns'],
-    queryFn: api.listEcalCampaigns,
-  });
-  const { data: screensData } = useQuery({
-    queryKey: ['ecal-devices'],
-    queryFn: api.listEcalDevices,
+  const [showContentModal, setShowContentModal] = useState(false);
+  const [showScreenModal,  setShowScreenModal]  = useState(false);
+  const [editingContent,   setEditingContent]   = useState(null);
+
+  const { data: stats }    = useQuery({ queryKey: ['ecal-stats'],    queryFn: api.getEcalStats,    refetchInterval: 30_000 });
+  const { data: rawContent } = useQuery({ queryKey: ['ecal-content'], queryFn: () => api.listEcalContent() });
+  const { data: rawScreens } = useQuery({ queryKey: ['ecal-devices'], queryFn: api.listEcalDevices, refetchInterval: 30_000 });
+  const { data: rawGroups }  = useQuery({ queryKey: ['ecal-groups'],  queryFn: api.listEcalGroups });
+
+  const content = Array.isArray(rawContent) ? rawContent : (rawContent?.items || []);
+  const screens = Array.isArray(rawScreens) ? rawScreens : (rawScreens?.items || []);
+  const groups  = Array.isArray(rawGroups)  ? rawGroups  : (rawGroups?.items  || []);
+
+  const delContent = useMutation({
+    mutationFn: api.deleteEcalContent,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ecal-content'] }),
   });
 
-  const contents  = contentsData?.items  || (Array.isArray(contentsData)  ? contentsData  : []);
-  const schedules = schedulesData?.items || (Array.isArray(schedulesData) ? schedulesData : []);
-  const screens   = screensData?.items   || (Array.isArray(screensData)   ? screensData   : []);
+  const delScreen = useMutation({
+    mutationFn: api.deleteEcalDevice,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ecal-devices'] }),
+  });
 
-  const PAGE_TITLES = {
-    overview:  { title: 'Signage',          sub: 'Plan, schedule and broadcast content to public displays.' },
-    content:   { title: 'Content library',  sub: 'Reusable items that can be scheduled into campaigns.' },
-    campaigns: { title: 'Campaigns',        sub: 'When content is shown, where, and to whom.' },
-    screens:   { title: 'Screens',          sub: 'Connected display devices and their assignment groups.' },
+  function invalidateAll() {
+    qc.invalidateQueries({ queryKey: ['ecal-content'] });
+    qc.invalidateQueries({ queryKey: ['ecal-stats'] });
+  }
+
+  const PAGE_META = {
+    overview:  { title: 'E-Calendar',       sub: 'Display network overview — screens, content, and live status.' },
+    content:   { title: 'Content library',  sub: 'Reusable content items scheduled to display devices.' },
+    schedule:  { title: 'Schedule',         sub: 'Prioritised content distribution timeline.' },
+    screens:   { title: 'Screens',          sub: 'Registered display devices and real-time heartbeat status.' },
   };
-  const { title, sub } = PAGE_TITLES[tab] || PAGE_TITLES.overview;
+  const { title, sub } = PAGE_META[tab] || PAGE_META.overview;
 
   return (
     <div className="page">
@@ -312,36 +609,54 @@ export default function ECalendarPage() {
           <div className="page__sub">{sub}</div>
         </div>
         <div className="page__actions">
-          {tab === 'content' && (
-            <>
-              <Btn kind="secondary" size="sm" icon={IcoUpload}>Upload media</Btn>
-              <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowModal(true)}>New content</Btn>
-            </>
-          )}
-          {tab === 'campaigns' && (
-            <Btn kind="primary" size="sm" icon={IcoPlus}>Schedule campaign</Btn>
+          {(tab === 'overview' || tab === 'content') && (
+            <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => { setEditingContent(null); setShowContentModal(true); }}>
+              New content
+            </Btn>
           )}
           {tab === 'screens' && (
-            <Btn kind="primary" size="sm" icon={IcoPlus}>Pair new screen</Btn>
+            <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowScreenModal(true)}>
+              Register screen
+            </Btn>
           )}
-          {tab === 'overview' && (
-            <>
-              <Btn kind="secondary" size="sm" icon={IcoCalendar}>Schedule</Btn>
-              <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowModal(true)}>New content</Btn>
-            </>
-          )}
+          <Btn kind="ghost" size="sm" icon={IcoRefresh}
+            onClick={() => { qc.invalidateQueries({ queryKey: ['ecal-content'] }); qc.invalidateQueries({ queryKey: ['ecal-devices'] }); qc.invalidateQueries({ queryKey: ['ecal-stats'] }); }}
+            title="Refresh" />
         </div>
       </div>
 
-      {tab === 'overview'   && <OverviewTab schedules={schedules} screens={screens} setShowModal={setShowModal} />}
-      {tab === 'content'    && <ContentTab contents={contents} setShowModal={setShowModal} />}
-      {tab === 'campaigns'  && <CampaignsTab schedules={schedules} />}
-      {tab === 'screens'    && <ScreensTab screens={screens} />}
+      {tab === 'overview' && (
+        <OverviewTab stats={stats} content={content} screens={screens}
+          onNewContent={() => { setEditingContent(null); setShowContentModal(true); }} />
+      )}
+      {tab === 'content' && (
+        <ContentTab content={content} groups={groups} devices={screens}
+          onNew={() => { setEditingContent(null); setShowContentModal(true); }}
+          onEdit={c => { setEditingContent(c); setShowContentModal(true); }}
+          onDelete={id => { if (confirm('Delete this content item?')) delContent.mutate(id); }} />
+      )}
+      {tab === 'schedule' && <ScheduleTab content={content} />}
+      {tab === 'screens' && (
+        <ScreensTab screens={screens}
+          onNew={() => setShowScreenModal(true)}
+          onDelete={id => { if (confirm('Remove this screen?')) delScreen.mutate(id); }} />
+      )}
 
-      {showModal && (
+      {showContentModal && (
         <ContentModal
-          onClose={() => setShowModal(false)}
-          onSaved={() => qc.invalidateQueries(['ecal-content'])}
+          initial={editingContent}
+          groups={groups}
+          devices={screens}
+          onClose={() => { setShowContentModal(false); setEditingContent(null); }}
+          onSaved={invalidateAll}
+        />
+      )}
+
+      {showScreenModal && (
+        <ScreenModal
+          groups={groups}
+          onClose={() => setShowScreenModal(false)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['ecal-devices'] })}
         />
       )}
     </div>

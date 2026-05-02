@@ -108,16 +108,27 @@ export const api = {
   },
   getDeviceReadings: (deviceId, params) => request('GET', `/data/readings?deviceId=${deviceId}&` + new URLSearchParams(params)),
 
-  // E-Calendar
-  listEcalGroups:    ()      => request('GET',    '/ecal/groups'),
-  createEcalGroup:   (body)  => request('POST',   '/ecal/groups', body),
-  listEcalDevices:   ()      => request('GET',    '/ecal/devices'),
-  createEcalDevice:  (body)  => request('POST',   '/ecal/devices', body),
-  listEcalContent:   (p)     => request('GET',    '/ecal/content?' + new URLSearchParams(p)),
-  createEcalContent: (body)  => request('POST',   '/ecal/content', body),
-  updateEcalContent: (id, b) => request('PATCH',  `/ecal/content/${id}`, b),
-  deleteEcalContent: (id)    => request('DELETE', `/ecal/content/${id}`),
-  listEcalCampaigns: ()      => request('GET',    '/ecal/campaigns'),
-  createEcalCampaign:(body)  => request('POST',   '/ecal/campaigns', body),
-  deleteEcalCampaign:(id)    => request('DELETE', `/ecal/campaigns/${id}`),
+  // E-Calendar — groups
+  getEcalStats:       ()       => request('GET',    '/ecal/stats'),
+  listEcalGroups:     ()       => request('GET',    '/ecal/groups'),
+  createEcalGroup:    (body)   => request('POST',   '/ecal/groups', body),
+  updateEcalGroup:    (id, b)  => request('PATCH',  `/ecal/groups/${id}`, b),
+  deleteEcalGroup:    (id)     => request('DELETE', `/ecal/groups/${id}`),
+
+  // E-Calendar — devices
+  listEcalDevices:    ()       => request('GET',    '/ecal/devices'),
+  createEcalDevice:   (body)   => request('POST',   '/ecal/devices', body),
+  updateEcalDevice:   (id, b)  => request('PATCH',  `/ecal/devices/${id}`, b),
+  deleteEcalDevice:   (id)     => request('DELETE', `/ecal/devices/${id}`),
+
+  // E-Calendar — content
+  listEcalContent:    (p)      => request('GET',    '/ecal/content?' + new URLSearchParams(p || {})),
+  createEcalContent:  (body)   => request('POST',   '/ecal/content', body),
+  updateEcalContent:  (id, b)  => request('PATCH',  `/ecal/content/${id}`, b),
+  deleteEcalContent:  (id)     => request('DELETE', `/ecal/content/${id}`),
+
+  // E-Calendar — campaigns
+  listEcalCampaigns:  ()       => request('GET',    '/ecal/campaigns'),
+  createEcalCampaign: (body)   => request('POST',   '/ecal/campaigns', body),
+  deleteEcalCampaign: (id)     => request('DELETE', `/ecal/campaigns/${id}`),
 };
