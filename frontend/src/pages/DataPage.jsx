@@ -238,6 +238,33 @@ export default function DataPage() {
         </div>
       </div>
 
+      {/* ── Stats (one row per selected sensor) ───────────────── */}
+      {allStats.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+          {allStats.map(st => (
+            <div key={st.key} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              {[
+                { label: `${st.label} avg`, value: st.avg, unit: st.unit },
+                { label: 'Min',             value: st.min, unit: st.unit },
+                { label: 'Max',             value: st.max, unit: st.unit },
+                { label: 'Readings',        value: st.count, unit: '' },
+              ].map(s => (
+                <div key={s.label} className="card"
+                  style={{ padding: '16px 20px', borderLeft: `3px solid ${st.color}` }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                    letterSpacing: '0.07em', color: 'var(--fg-muted)', marginBottom: 8 }}>{s.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-0.03em',
+                      lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
+                    {s.unit && <span style={{ fontSize: 13, color: 'var(--fg-muted)', fontWeight: 500 }}>{s.unit}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Chart ──────────────────────────────────────────────── */}
       <Card
           title={device
@@ -330,32 +357,6 @@ export default function DataPage() {
           )}
         </Card>
 
-      {/* ── Stats (one row per selected sensor) ───────────────── */}
-      {allStats.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {allStats.map(st => (
-            <div key={st.key} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-              {[
-                { label: `${st.label} avg`, value: st.avg, unit: st.unit },
-                { label: 'Min',             value: st.min, unit: st.unit },
-                { label: 'Max',             value: st.max, unit: st.unit },
-                { label: 'Readings',        value: st.count, unit: '' },
-              ].map(s => (
-                <div key={s.label} className="card"
-                  style={{ padding: '16px 20px', borderLeft: `3px solid ${st.color}` }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                    letterSpacing: '0.07em', color: 'var(--fg-muted)', marginBottom: 8 }}>{s.label}</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                    <span style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-0.03em',
-                      lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
-                    {s.unit && <span style={{ fontSize: 13, color: 'var(--fg-muted)', fontWeight: 500 }}>{s.unit}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
