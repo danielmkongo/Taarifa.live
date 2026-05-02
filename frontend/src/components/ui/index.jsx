@@ -50,9 +50,9 @@ export function Seg({ value, onChange, options }) {
   );
 }
 
-export function Card({ title, sub, actions, children, padding = true, className = '' }) {
+export function Card({ title, sub, actions, children, padding = true, className = '', style }) {
   return (
-    <div className={`card ${className}`}>
+    <div className={`card ${className}`} style={style}>
       {(title || actions) && (
         <div className="card__head">
           <div>

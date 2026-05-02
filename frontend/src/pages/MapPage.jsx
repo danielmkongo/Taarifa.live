@@ -118,7 +118,6 @@ export default function MapPage() {
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: ['marker'],
   });
 
   const { data: devices, isLoading } = useQuery({

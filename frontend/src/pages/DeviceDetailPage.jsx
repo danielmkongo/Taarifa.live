@@ -89,8 +89,9 @@ export default function DeviceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [sensorKey, setSensorKey] = useState('temperature');
-  const [range, setRange] = useState('24h');
+  const [range, setRange]         = useState('24h');
   const [chartType, setChartType] = useState('line');
+  const [view, setView]           = useState('chart');
   const [exporting, setExporting] = useState(false);
 
   const { data: device, isLoading: loadingDevice } = useQuery({
@@ -117,31 +118,36 @@ export default function DeviceDetailPage() {
     refetchInterval: 60_000,
   });
 
+  const readingsList  = readings?.readings || [];
+  const isAggregate   = (range !== '1h');
+
   const chartSeries = useMemo(() => {
-    if (!readings?.readings?.length) return [];
+    if (!readingsList.length) return [];
     const sensor = SENSORS.find(s => s.key === sensorKey);
-    const data = readings.readings.map((r, i) => ({
+    const step = Math.max(1, Math.ceil(readingsList.length / 6));
+    const data = readingsList.map((r, i) => ({
       t: i,
       v: r.value,
-      label: i % Math.ceil(readings.readings.length / 6) === 0
+      label: i % step === 0
         ? format(new Date(r.timestamp), range === '1h' ? 'HH:mm' : range === '24h' ? 'HH:mm' : 'MMM d')
         : '',
     }));
     return [{ name: `${device?.name || ''} · ${sensor?.label || sensorKey}`, color: sensor?.color || 'var(--c1)', data }];
-  }, [readings, sensorKey, device, range]);
+  }, [readingsList, sensorKey, device, range]);
 
   const stats = useMemo(() => {
-    if (!readings?.readings?.length) return null;
-    const vals = readings.readings.map(r => r.value);
+    if (!readingsList.length) return null;
+    const vals = readingsList.map(r => r.value);
     return {
       avg: (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2),
       min: Math.min(...vals).toFixed(2),
       max: Math.max(...vals).toFixed(2),
       count: vals.length,
     };
-  }, [readings]);
+  }, [readingsList]);
 
-  const sensorUnit = SENSORS.find(s => s.key === sensorKey)?.unit || '';
+  const sensor     = SENSORS.find(s => s.key === sensorKey);
+  const sensorUnit = sensor?.unit || '';
   const latestMap = {};
   (Array.isArray(latest) ? latest : []).forEach(r => { latestMap[r._id] = r.value; });
 
@@ -238,37 +244,68 @@ export default function DeviceDetailPage() {
       )}
 
       <div className="grid" style={{ gridTemplateColumns: '1fr 280px', gap: 16, alignItems: 'flex-start' }}>
-        {/* Chart */}
+        {/* Chart / Table */}
         <Card
           title={`${SENSORS.find(s => s.key === sensorKey)?.label || sensorKey} · ${device.name}`}
-          sub={`${range} · ${readings?.readings?.length || 0} data points`}
+          sub={`${range} · ${readingsList.length} data points`}
           actions={<>
             <Seg value={sensorKey} onChange={setSensorKey}
               options={SENSORS.slice(0, 4).map(s => ({ value: s.key, label: s.label }))} />
             <Seg value={range} onChange={setRange} options={RANGES} />
-            <Seg value={chartType} onChange={setChartType} options={[
-              { value: 'line', label: 'Line' },
-              { value: 'area', label: 'Area' },
-              { value: 'bar',  label: 'Bar' },
+            <Seg value={view} onChange={setView} options={[
+              { value: 'chart', label: 'Chart' },
+              { value: 'table', label: 'Table' },
             ]} />
+            {view === 'chart' && (
+              <Seg value={chartType} onChange={setChartType} options={[
+                { value: 'line', label: 'Line' },
+                { value: 'area', label: 'Area' },
+                { value: 'bar',  label: 'Bar' },
+              ]} />
+            )}
           </>}>
-          {loadingReadings ? <Spinner /> : chartSeries.length === 0 ? (
+          {loadingReadings ? <Spinner /> : readingsList.length === 0 ? (
             <Empty icon={null} title="No data" hint="No readings for this sensor in the selected range." />
+          ) : view === 'chart' ? (
+            <LineChart series={chartSeries} height={280} yLabel={sensorUnit}
+              area={chartType === 'area'} bar={chartType === 'bar'} showLegend={false} />
           ) : (
-            <LineChart
-              series={chartSeries}
-              height={280}
-              yLabel={sensorUnit}
-              area={chartType === 'area'}
-              bar={chartType === 'bar'}
-            />
+            <div style={{ overflowX: 'auto', maxHeight: 320, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-elev)' }}>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg-muted)' }}>Time</th>
+                    <th style={{ textAlign: 'right', padding: '6px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg-muted)' }}>Value ({sensorUnit})</th>
+                    {isAggregate && <><th style={{ textAlign: 'right', padding: '6px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg-muted)' }}>Min</th><th style={{ textAlign: 'right', padding: '6px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg-muted)' }}>Max</th></>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...readingsList].reverse().map((r, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}>
+                      <td style={{ padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-muted)' }}>
+                        {format(new Date(r.timestamp), 'MMM d HH:mm:ss')}
+                      </td>
+                      <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                        {typeof r.value === 'number' ? r.value.toFixed(2) : r.value}
+                      </td>
+                      {isAggregate && (
+                        <>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.min != null ? r.min.toFixed(2) : '—'}</td>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.max != null ? r.max.toFixed(2) : '—'}</td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
 
         {/* Right column: stats + map */}
         <div className="grid" style={{ gap: 12 }}>
           {/* Stats */}
-          <Card title="Statistics" sub={`${range} · ${sensorKey}`}>
+          <Card title="Statistics" sub={`${range} · ${sensor?.label || sensorKey}`}>
             {stats ? (
               <div className="grid grid-cols-2" style={{ gap: 8 }}>
                 {[

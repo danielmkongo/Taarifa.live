@@ -15,11 +15,30 @@ export default async function dataRoutes(fastify) {
     const device = await col('devices').findOne({ _id: new ObjectId(deviceId), orgId: req.user.orgId });
     if (!device) return reply.notFound('Device not found');
 
-    const readings = await queryReadings({
+    const raw = await queryReadings({
       deviceId: device._id, sensorKey, from, to,
       granularity, limit: Math.min(parseInt(limit), 10000),
     });
-    return readings;
+
+    // Normalize to a consistent shape regardless of granularity
+    let readings;
+    if (granularity === 'raw') {
+      readings = raw.map(r => ({
+        timestamp: r.timestamp,
+        sensorKey: r.meta?.sensorKey,
+        value: r.value,
+      }));
+    } else {
+      readings = raw.map(r => ({
+        timestamp: new Date(r._id.bucket),
+        sensorKey: r._id.sensorKey,
+        value: +r.avg.toFixed(4),
+        min:   +r.min.toFixed(4),
+        max:   +r.max.toFixed(4),
+        count: r.count,
+      }));
+    }
+    return { readings, granularity, total: readings.length };
   });
 
   // GET /data/latest/:deviceId
