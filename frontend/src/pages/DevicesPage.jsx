@@ -1,11 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { api } from '../services/api.js';
 import { useAuthStore } from '../store/auth.js';
 import { Btn, Badge, StatusDot, Seg, Card, Sparkline, Empty, Spinner } from '../components/ui/index.jsx';
-import { IcoPlus, IcoFilter, IcoDownload, IcoLayoutGrid, IcoList, IcoGroup, IcoMore, IcoX, IcoCheck, IcoArrowRight, IcoSearch } from '../components/ui/Icons.jsx';
+import { IcoPlus, IcoFilter, IcoDownload, IcoLayoutGrid, IcoList, IcoGroup, IcoMore, IcoX, IcoCheck, IcoArrowRight, IcoSearch, IcoMap } from '../components/ui/Icons.jsx';
 
 function rng(seed) {
   let s = seed | 0; if (s === 0) s = 1;
@@ -237,6 +238,7 @@ export default function DevicesPage() {
             { value: 'list',  label: 'List',    icon: IcoList },
             { value: 'grid',  label: 'Grid',    icon: IcoLayoutGrid },
             { value: 'group', label: 'By site', icon: IcoGroup },
+            { value: 'map',   label: 'Map',     icon: IcoMap },
           ]} />
           {(role === 'admin' || role === 'org_admin') && (
             <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowAdd(true)}>Add device</Btn>
@@ -269,7 +271,9 @@ export default function DevicesPage() {
           <Btn kind="ghost" size="sm" icon={IcoDownload}>Export CSV</Btn>
         </div>
 
-        {isLoading ? <Spinner /> : filtered.length === 0 ? (
+        {isLoading ? <Spinner /> : view === 'map' ? (
+          <DeviceMapView devices={filtered} onDeviceClick={id => navigate(`/devices/${id}`)} />
+        ) : filtered.length === 0 ? (
           <Card><Empty icon={IcoList} title="No devices" hint="Add a device to get started." /></Card>
         ) : view === 'list' ? (
           <DeviceTable devices={filtered} groupNameMap={groupNameMap} getSpark={getSpark} onRowClick={id => navigate(`/devices/${id}`)} />
@@ -526,6 +530,172 @@ function DeviceTable({ devices, groupNameMap, getSpark, onRowClick }) {
         </tbody>
       </table>
     </Card>
+  );
+}
+
+// ─── Map view ────────────────────────────────────────────────────────────────
+const STATUS_COLORS = { online: '#22c55e', offline: '#94a3b8', alert: '#ef4444', maintenance: '#f59e0b' };
+
+function buildPin(status, selected) {
+  const c = STATUS_COLORS[status] || '#94a3b8';
+  const w = selected ? 38 : 30, h = Math.round((selected ? 38 : 30) * 1.28);
+  const cx = w / 2, cy = Math.round(w * 0.44);
+  const r1 = Math.round(w * 0.44), r2 = Math.round(w * 0.25), r3 = Math.round(w * 0.12);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <defs><filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.6)"/></filter></defs>
+    ${selected ? `<circle cx="${cx}" cy="${cy}" r="${r1 + 5}" fill="${c}" fill-opacity="0.2"/>` : ''}
+    <path d="M${cx} 2C${cx - r1} 2 ${cx - r1 - 1} ${cy - r1 + 1} ${cx - r1 - 1} ${cy}c0 ${Math.round(r1 * 1.5)} ${r1 + 1} ${Math.round(r1 * 2.3)} ${r1 + 1} ${Math.round(r1 * 2.3)}S${cx + r1 + 1} ${cy + Math.round(r1 * 1.5)} ${cx + r1 + 1} ${cy}C${cx + r1 + 1} ${cy - r1 + 1} ${cx + r1} 2 ${cx} 2z"
+      fill="white" filter="url(#s)"/>
+    <path d="M${cx} 4C${cx - r1 + 1} 4 ${cx - r1} ${cy - r1 + 2} ${cx - r1} ${cy}c0 ${Math.round(r1 * 1.4)} ${r1} ${Math.round(r1 * 2.2)} ${r1} ${Math.round(r1 * 2.2)}S${cx + r1} ${cy + Math.round(r1 * 1.4)} ${cx + r1} ${cy}C${cx + r1} ${cy - r1 + 2} ${cx + r1 - 1} 4 ${cx} 4z"
+      fill="${c}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r2}" fill="white" fill-opacity="0.92"/>
+    <circle cx="${cx}" cy="${cy}" r="${r3}" fill="${c}"/>
+    ${status === 'alert' ? `<text x="${cx}" y="${cy + 4}" font-size="${Math.round(w * 0.28)}" font-weight="900" font-family="Arial,sans-serif" text-anchor="middle" fill="white">!</text>` : ''}
+  </svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: { width: w, height: h },
+    anchor: { x: cx, y: h - 1 },
+  };
+}
+
+function DeviceMapView({ devices, onDeviceClick }) {
+  const navigate = useNavigate();
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY });
+  const [map, setMap] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const markersRef = useRef([]);
+  const clustererRef = useRef(null);
+  const markerMap = useRef({});
+  const fitDone = useRef(false);
+
+  const onMapLoad = useCallback(m => setMap(m), []);
+
+  useEffect(() => {
+    if (!map || !window.google) return;
+    markersRef.current.forEach(m => m.setMap(null));
+    markersRef.current = [];
+    markerMap.current = {};
+    if (clustererRef.current) { clustererRef.current.clearMarkers(); clustererRef.current = null; }
+
+    const positioned = devices.filter(d => d.location?.coordinates);
+    const newMarkers = positioned.map(device => {
+      const [lng, lat] = device.location.coordinates;
+      const marker = new window.google.maps.Marker({
+        position: { lat, lng },
+        icon: buildPin(device.status, false),
+        title: device.name,
+        optimized: true,
+        zIndex: device.status === 'alert' ? 100 : device.status === 'online' ? 50 : 10,
+      });
+      marker.addListener('click', () => setSelected(d => {
+        const same = d?._id?.toString() === device._id?.toString();
+        return same ? null : device;
+      }));
+      markerMap.current[device._id?.toString()] = marker;
+      return marker;
+    });
+    markersRef.current = newMarkers;
+    if (newMarkers.length) clustererRef.current = new MarkerClusterer({ map, markers: newMarkers });
+
+    if (!fitDone.current && positioned.length) {
+      fitDone.current = true;
+      const bounds = new window.google.maps.LatLngBounds();
+      positioned.forEach(d => bounds.extend({ lat: d.location.coordinates[1], lng: d.location.coordinates[0] }));
+      map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+      setTimeout(() => { if (map.getZoom() > 12) map.setZoom(12); }, 400);
+    }
+  }, [map, devices]);
+
+  useEffect(() => {
+    devices.filter(d => d.location?.coordinates).forEach(device => {
+      const marker = markerMap.current[device._id?.toString()];
+      if (!marker) return;
+      const isSelected = selected?._id?.toString() === device._id?.toString();
+      marker.setIcon(buildPin(device.status, isSelected));
+    });
+  }, [selected, devices]);
+
+  const withCoords = devices.filter(d => d.location?.coordinates).length;
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* Status strip */}
+      <div className="row gap-3" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+        <span className="text-xs muted">{withCoords} of {devices.length} devices on map</span>
+        {[
+          { s: 'online', l: 'Online', cls: 'dot--ok' },
+          { s: 'alert', l: 'Alert', cls: 'dot--danger' },
+          { s: 'offline', l: 'Offline', cls: 'dot--off' },
+        ].map(({ s, l, cls }) => {
+          const n = devices.filter(d => d.status === s).length;
+          return n > 0 ? (
+            <span key={s} className="row gap-1 text-xs muted">
+              <span className={`dot ${cls}`} /> {n} {l}
+            </span>
+          ) : null;
+        })}
+      </div>
+
+      {/* Map + side panel */}
+      <div style={{ display: 'flex', gap: 0, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)', height: 520 }}>
+        <div style={{ flex: 1 }}>
+          {!isLoaded ? (
+            <div style={{ height: '100%', background: 'var(--bg-subtle)', display: 'grid', placeItems: 'center' }}><Spinner /></div>
+          ) : (
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: '100%' }}
+              center={{ lat: -6.4, lng: 35.7 }}
+              zoom={6}
+              options={{ mapTypeId: 'hybrid', zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+              onLoad={onMapLoad}
+              onClick={() => setSelected(null)}>
+            </GoogleMap>
+          )}
+        </div>
+
+        {/* Side panel */}
+        {selected && (
+          <div style={{ width: 260, borderLeft: '1px solid var(--border)', background: 'var(--bg-elev)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="row gap-2">
+                <StatusDot status={selected.status} />
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{selected.name}</span>
+              </div>
+              <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setSelected(null)}>
+                <IcoX size={13} />
+              </button>
+            </div>
+            <div style={{ padding: '8px 12px', flex: 1, overflow: 'auto' }}>
+              <div className="text-xs muted">{selected.locationName || selected.address || '—'}</div>
+              {selected.location?.coordinates && (
+                <div className="text-xs subtle mono" style={{ marginTop: 2 }}>
+                  {selected.location.coordinates[1].toFixed(4)}, {selected.location.coordinates[0].toFixed(4)}
+                </div>
+              )}
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {[
+                  { l: 'Status',    v: selected.status },
+                  { l: 'Firmware',  v: selected.firmwareVersion || selected.firmware || '—' },
+                  { l: 'Protocol',  v: selected.protocol || 'http' },
+                  { l: 'Last seen', v: selected.lastSeenAt ? new Date(selected.lastSeenAt).toLocaleTimeString() : '—' },
+                ].map(row => (
+                  <div key={row.l} className="row gap-2" style={{ justifyContent: 'space-between' }}>
+                    <span className="text-xs muted">{row.l}</span>
+                    <span className="text-xs mono">{row.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ padding: 10, borderTop: '1px solid var(--border)' }}>
+              <Btn kind="primary" full size="sm" iconRight={IcoArrowRight} onClick={() => navigate(`/devices/${selected._id}`)}>
+                Open device
+              </Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

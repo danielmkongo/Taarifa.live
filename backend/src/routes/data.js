@@ -165,9 +165,7 @@ export default async function dataRoutes(fastify) {
   // GET /data/map — all devices with latest readings for map view
   fastify.get('/map', { preHandler }, async (req) => {
     const devices = await col('devices')
-      .find({ orgId: req.user.orgId, isActive: true, location: { $ne: null } }, {
-        projection: { apiKeyHash: 0 },
-      })
+      .find({ orgId: req.user.orgId }, { projection: { apiKeyHash: 0 } })
       .toArray();
 
     const results = await Promise.all(

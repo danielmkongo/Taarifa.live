@@ -451,6 +451,28 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 0; }
   .search { min-width: 0; flex: 1; }
   .topbar__crumbs { display: none; }
 
+  /* Map page: stack panels vertically on mobile */
+  .map-panel-side {
+    position: fixed !important;
+    bottom: 0; left: 0; right: 0;
+    width: 100% !important; min-width: 100% !important;
+    max-height: 55vh;
+    border-right: none !important;
+    border-top: 1px solid var(--border);
+    z-index: 50;
+    overflow-y: auto;
+  }
+  .map-detail-panel-side {
+    position: fixed !important;
+    bottom: 0; left: 0; right: 0;
+    width: 100% !important; min-width: 100% !important;
+    max-height: 55vh;
+    border-left: none !important;
+    border-top: 1px solid var(--border);
+    z-index: 51;
+    overflow-y: auto;
+  }
+
   /* Ws-toggle labels hide on very small screens */
   @media (max-width: 380px) {
     .ws-toggle__btn { font-size: 11px; padding: 8px 4px; gap: 4px; }

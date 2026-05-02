@@ -47,32 +47,70 @@ function SignalBars({ n }) {
   );
 }
 
+function beaconIcon(status) {
+  const c = { online: '#22c55e', offline: '#94a3b8', alert: '#ef4444', maintenance: '#f59e0b' }[status] || '#94a3b8';
+  const pulse = status === 'online' || status === 'alert';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="74" viewBox="0 0 60 74">
+    <defs>
+      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="4" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="shadow" x="-40%" y="-30%" width="180%" height="180%">
+        <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="rgba(0,0,0,0.6)"/>
+      </filter>
+      <radialGradient id="rg" cx="40%" cy="35%">
+        <stop offset="0%" stop-color="white" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="white" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    ${pulse ? `<circle cx="30" cy="28" r="26" fill="${c}" fill-opacity="0.18" filter="url(#glow)"/>` : ''}
+    <path d="M30 2C18.95 2 10 10.95 10 22c0 17 20 50 20 50S50 39 50 22C50 10.95 41.05 2 30 2z"
+      fill="white" filter="url(#shadow)"/>
+    <path d="M30 4C19.96 4 12 11.96 12 22c0 16 18 46 18 46S48 38 48 22C48 11.96 40.04 4 30 4z"
+      fill="${c}"/>
+    <circle cx="30" cy="22" r="14" fill="white" fill-opacity="0.2"/>
+    <circle cx="30" cy="22" r="10" fill="white" fill-opacity="0.95"/>
+    <circle cx="30" cy="22" r="5" fill="${c}"/>
+    <rect x="10" y="2" width="40" height="40" fill="url(#rg)" rx="20"/>
+    ${status === 'alert' ? `<text x="30" y="27" font-size="11" font-weight="900" font-family="Arial,sans-serif" text-anchor="middle" fill="white">!</text>` : ''}
+  </svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: { width: 60, height: 74 },
+    anchor: { x: 30, y: 72 },
+  };
+}
+
 function DeviceMap({ device }) {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
   });
-  const [map, setMap] = useState(null);
 
   const coords = device?.location?.coordinates;
-  if (!coords) return <div className="muted text-sm" style={{ padding: 16 }}>No location recorded.</div>;
+  if (!coords) return (
+    <div style={{ height: 240, background: 'var(--bg-subtle)', borderRadius: 8, display: 'grid', placeItems: 'center' }}>
+      <div className="text-sm muted">No GPS location recorded for this device.</div>
+    </div>
+  );
 
   const center = { lat: coords[1], lng: coords[0] };
 
   return (
-    <div style={{ height: 220, borderRadius: 8, overflow: 'hidden' }}>
+    <div style={{ height: 240, borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
       {isLoaded ? (
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '100%' }}
           center={center}
-          zoom={13}
-          options={{ mapTypeId: 'hybrid', zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+          zoom={14}
+          options={{ mapTypeId: 'hybrid', zoomControl: true, mapTypeControl: false, streetViewControl: false, fullscreenControl: true }}
           onLoad={m => {
-            setMap(m);
-            // Place a marker
             new window.google.maps.Marker({
               position: center,
               map: m,
               title: device.name,
+              icon: beaconIcon(device.status),
+              zIndex: 100,
             });
           }}
         />
