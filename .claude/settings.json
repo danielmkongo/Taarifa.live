@@ -5,7 +5,9 @@
       "Bash(dir \"C:\\\\Users\\\\danie\\\\Downloads\\\\Taarifa\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\danie\\\\Taarifa.live\\\\frontend\\\\src\" -Recurse)",
       "Bash(Select-Object FullName)",
-      "Bash(dir \"C:\\\\Users\\\\danie\\\\Taarifa.live\\\\frontend\")"
+      "Bash(dir \"C:\\\\Users\\\\danie\\\\Taarifa.live\\\\frontend\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   },
   "hooks": {
