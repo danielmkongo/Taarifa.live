@@ -85,7 +85,7 @@ export function Sparkline({ data, color = 'var(--accent)', height = 32, fill = f
   );
 }
 
-export function LineChart({ series, height = 280, yLabel, showLegend = true, area = true }) {
+export function LineChart({ series, height = 280, yLabel, showLegend = true, area = true, bar = false }) {
   const w = 800, h = height;
   const padL = 44, padR = 16, padT = 14, padB = 28;
   const innerW = w - padL - padR, innerH = h - padT - padB;
@@ -125,16 +125,39 @@ export function LineChart({ series, height = 280, yLabel, showLegend = true, are
               fill="var(--fg-subtle)" fontFamily="var(--font-mono)">{d.label || ''}</text>
           );
         })}
-        {series.map((s) => {
-          const path = s.data.map((d, i) => `${i === 0 ? 'M' : 'L'}${sx(d.t)},${sy(d.v)}`).join(' ');
-          const areaP = `${path} L${sx(s.data[s.data.length - 1].t)},${sy(yMin)} L${sx(s.data[0].t)},${sy(yMin)} Z`;
-          return (
-            <g key={s.name}>
-              {area && <path d={areaP} fill={s.color} fillOpacity="0.08" />}
-              <path d={path} fill="none" stroke={s.color} strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
-            </g>
-          );
-        })}
+        {bar ? (
+          series.map((s) => {
+            const bw = Math.max(2, (innerW / (s.data.length || 1)) * 0.65);
+            return (
+              <g key={s.name}>
+                {s.data.map((d) => {
+                  const bh = Math.max(1, ((d.v - yMin) / ySpan) * innerH);
+                  return (
+                    <rect key={d.t}
+                      x={sx(d.t) - bw / 2}
+                      y={sy(d.v)}
+                      width={bw}
+                      height={bh}
+                      fill={s.color}
+                      fillOpacity="0.75"
+                    />
+                  );
+                })}
+              </g>
+            );
+          })
+        ) : (
+          series.map((s) => {
+            const path = s.data.map((d, i) => `${i === 0 ? 'M' : 'L'}${sx(d.t)},${sy(d.v)}`).join(' ');
+            const areaP = `${path} L${sx(s.data[s.data.length - 1].t)},${sy(yMin)} L${sx(s.data[0].t)},${sy(yMin)} Z`;
+            return (
+              <g key={s.name}>
+                {area && <path d={areaP} fill={s.color} fillOpacity="0.08" />}
+                <path d={path} fill="none" stroke={s.color} strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+              </g>
+            );
+          })
+        )}
         {yLabel && <text x={12} y={padT + 4} fontSize="10" fill="var(--fg-subtle)" fontFamily="var(--font-mono)">{yLabel}</text>}
       </svg>
       {showLegend && (

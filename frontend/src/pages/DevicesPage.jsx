@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import { api } from '../services/api.js';
 import { useAuthStore } from '../store/auth.js';
 import { Btn, Badge, StatusDot, Seg, Card, Sparkline, Empty, Spinner } from '../components/ui/index.jsx';
-import { IcoPlus, IcoFilter, IcoDownload, IcoLayoutGrid, IcoList, IcoGroup, IcoMore, IcoX, IcoCheck, IcoArrowRight } from '../components/ui/Icons.jsx';
+import { IcoPlus, IcoFilter, IcoDownload, IcoLayoutGrid, IcoList, IcoGroup, IcoMore, IcoX, IcoCheck, IcoArrowRight, IcoSearch } from '../components/ui/Icons.jsx';
 
 function rng(seed) {
   let s = seed | 0; if (s === 0) s = 1;
@@ -47,6 +49,19 @@ function AddDeviceModal({ groups, onClose, onSaved }) {
   const [form, setForm] = useState({ name: '', description: '', groupId: '', lat: '', lon: '', locationName: '' });
   const [error, setError] = useState('');
   const [newKey, setNewKey] = useState('');
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY });
+  const [mapSearch, setMapSearch] = useState('');
+
+  function handleMapSearch() {
+    if (!mapSearch.trim() || !window.google) return;
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ address: mapSearch + ', Tanzania' }, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const loc = results[0].geometry.location;
+        setForm(f => ({ ...f, lat: loc.lat().toFixed(6), lon: loc.lng().toFixed(6) }));
+      }
+    });
+  }
 
   async function submit(e) {
     e.preventDefault(); setError('');
@@ -102,6 +117,37 @@ function AddDeviceModal({ groups, onClose, onSaved }) {
               <div className="field"><label className="field__label">Latitude</label><input type="number" step="any" className="input" value={form.lat} onChange={e => setForm(f => ({ ...f, lat: e.target.value }))} /></div>
               <div className="field"><label className="field__label">Longitude</label><input type="number" step="any" className="input" value={form.lon} onChange={e => setForm(f => ({ ...f, lon: e.target.value }))} /></div>
             </div>
+            <div className="field" style={{ marginTop: 12, marginBottom: 12 }}>
+              <label className="field__label">Pick location on map</label>
+              <div className="row gap-2" style={{ marginBottom: 8 }}>
+                <input className="input" placeholder="Search location…" value={mapSearch}
+                  onChange={e => setMapSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleMapSearch(); } }} />
+                <Btn kind="secondary" size="sm" type="button" onClick={handleMapSearch}>Search</Btn>
+              </div>
+              {isLoaded && (
+                <div style={{ height: 200, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  <GoogleMap
+                    mapContainerStyle={{ width: '100%', height: '100%' }}
+                    center={form.lat && form.lon
+                      ? { lat: parseFloat(form.lat), lng: parseFloat(form.lon) }
+                      : { lat: -6.369, lng: 34.889 }}
+                    zoom={form.lat && form.lon ? 12 : 6}
+                    options={{ mapTypeId: 'hybrid', mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+                    onClick={e => {
+                      const lat = e.latLng.lat().toFixed(6);
+                      const lng = e.latLng.lng().toFixed(6);
+                      setForm(f => ({ ...f, lat, lon: lng }));
+                    }}>
+                  </GoogleMap>
+                </div>
+              )}
+              {form.lat && form.lon && (
+                <div className="text-xs muted" style={{ marginTop: 4 }}>
+                  Selected: {form.lat}, {form.lon}
+                </div>
+              )}
+            </div>
           </form>
         </div>
         <div className="modal__foot">
@@ -115,11 +161,14 @@ function AddDeviceModal({ groups, onClose, onSaved }) {
 
 export default function DevicesPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const user = useAuthStore(s => s.user);
   const role = user?.role || 'viewer';
   const [view, setView] = useState('list');
   const [filter, setFilter] = useState('all');
   const [showAdd, setShowAdd] = useState(false);
+  const [search, setSearch] = useState('');
+  const [pageTab, setPageTab] = useState('devices'); // 'devices' | 'firmware'
 
   const { data, isLoading } = useQuery({
     queryKey: ['devices'],
@@ -132,9 +181,16 @@ export default function DevicesPage() {
     queryFn: () => api.getSparklines({ sensorKey: 'temperature' }),
     refetchInterval: 120_000,
   });
+  const { data: firmwareList = [], refetch: refetchFirmware } = useQuery({
+    queryKey: ['firmware'],
+    queryFn: api.listFirmware,
+    enabled: pageTab === 'firmware',
+  });
 
   const devices = data?.devices || [];
-  const filtered = filter === 'all' ? devices : devices.filter(d => d.status === filter);
+  const filtered = devices
+    .filter(d => filter === 'all' || d.status === filter)
+    .filter(d => !search || [d.name, d.serialNumber, d.locationName].some(v => v?.toLowerCase().includes(search.toLowerCase())));
 
   const counts = {
     total:       devices.length,
@@ -188,35 +244,57 @@ export default function DevicesPage() {
         </div>
       </div>
 
-      <div className="row gap-2" style={{ marginBottom: 12 }}>
-        <Seg value={filter} onChange={setFilter} options={[
-          { value: 'all',         label: `All ${counts.total}` },
-          { value: 'online',      label: 'Online' },
-          { value: 'alert',       label: 'Alerting' },
-          { value: 'offline',     label: 'Offline' },
-          { value: 'maintenance', label: 'Maintenance' },
+      <div className="row gap-3" style={{ marginBottom: 12 }}>
+        <Seg value={pageTab} onChange={setPageTab} options={[
+          { value: 'devices',  label: 'Devices' },
+          { value: 'firmware', label: 'Firmware' },
         ]} />
-        <div style={{ flex: 1 }} />
-        <Btn kind="secondary" size="sm" icon={IcoFilter}>Filters</Btn>
-        <Btn kind="ghost" size="sm" icon={IcoDownload}>Export CSV</Btn>
       </div>
 
-      {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <Card><Empty icon={IcoList} title="No devices" hint="Add a device to get started." /></Card>
-      ) : view === 'list' ? (
-        <DeviceTable devices={filtered} groupNameMap={groupNameMap} getSpark={getSpark} />
-      ) : view === 'grid' ? (
-        <DeviceGrid devices={filtered} getSpark={getSpark} />
-      ) : (
-        <div className="grid" style={{ gap: 16 }}>
-          {byGroup.map(([key, { label, devices: devs }]) => (
-            <Card key={key} title={label} sub={`${devs.length} device${devs.length !== 1 ? 's' : ''}`}
-              actions={<Btn kind="ghost" size="sm" iconRight={IcoArrowRight}>View site</Btn>}
-              padding={false}>
-              <DeviceTable devices={devs} groupNameMap={groupNameMap} getSpark={getSpark} />
-            </Card>
-          ))}
+      {pageTab === 'devices' && (<>
+        <div className="row gap-2" style={{ marginBottom: 12 }}>
+          <Seg value={filter} onChange={setFilter} options={[
+            { value: 'all',         label: `All ${counts.total}` },
+            { value: 'online',      label: 'Online' },
+            { value: 'alert',       label: 'Alerting' },
+            { value: 'offline',     label: 'Offline' },
+            { value: 'maintenance', label: 'Maintenance' },
+          ]} />
+          <div style={{ flex: 1 }} />
+          <div className="search" style={{ width: 220 }}>
+            <IcoSearch size={13} />
+            <input placeholder="Search devices…" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <Btn kind="secondary" size="sm" icon={IcoFilter}>Filters</Btn>
+          <Btn kind="ghost" size="sm" icon={IcoDownload}>Export CSV</Btn>
         </div>
+
+        {isLoading ? <Spinner /> : filtered.length === 0 ? (
+          <Card><Empty icon={IcoList} title="No devices" hint="Add a device to get started." /></Card>
+        ) : view === 'list' ? (
+          <DeviceTable devices={filtered} groupNameMap={groupNameMap} getSpark={getSpark} onRowClick={id => navigate(`/devices/${id}`)} />
+        ) : view === 'grid' ? (
+          <DeviceGrid devices={filtered} getSpark={getSpark} />
+        ) : (
+          <div className="grid" style={{ gap: 16 }}>
+            {byGroup.map(([key, { label, devices: devs }]) => (
+              <Card key={key} title={label} sub={`${devs.length} device${devs.length !== 1 ? 's' : ''}`}
+                actions={<Btn kind="ghost" size="sm" iconRight={IcoArrowRight}>View site</Btn>}
+                padding={false}>
+                <DeviceTable devices={devs} groupNameMap={groupNameMap} getSpark={getSpark} onRowClick={id => navigate(`/devices/${id}`)} />
+              </Card>
+            ))}
+          </div>
+        )}
+      </>)}
+
+      {pageTab === 'firmware' && (
+        <FirmwareTab
+          firmwareList={firmwareList}
+          onRefetch={refetchFirmware}
+          role={role}
+          devices={devices}
+        />
       )}
 
       {showAdd && (
@@ -230,7 +308,176 @@ export default function DevicesPage() {
   );
 }
 
-function DeviceTable({ devices, groupNameMap, getSpark }) {
+function FirmwareTab({ firmwareList, onRefetch, role, devices }) {
+  const qc = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+  const [activating, setActivating] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+
+  const activeFw = firmwareList.find(f => f.isActive);
+
+  async function handleActivate(id) {
+    setActivating(id);
+    try {
+      await api.activateFirmware(id);
+      onRefetch();
+    } finally { setActivating(null); }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('Delete this firmware version?')) return;
+    setDeleting(id);
+    try {
+      await api.deleteFirmware(id);
+      onRefetch();
+    } finally { setDeleting(null); }
+  }
+
+  const devicesNeedingUpdate = activeFw
+    ? devices.filter(d => {
+        const dv = (d.firmwareVersion || '0.0.0').split('.').map(Number);
+        const av = activeFw.version.split('.').map(Number);
+        for (let i = 0; i < 3; i++) {
+          const diff = (dv[i] || 0) - (av[i] || 0);
+          if (diff < 0) return true;
+          if (diff > 0) return false;
+        }
+        return false;
+      }).length
+    : 0;
+
+  return (
+    <>
+      <div className="row gap-3" style={{ marginBottom: 12, alignItems: 'center' }}>
+        <div>
+          <span className="text-sm font-medium">Firmware management</span>
+          {activeFw && <span className="text-xs muted" style={{ marginLeft: 8 }}>Active: <span className="mono">{activeFw.version}</span></span>}
+          {devicesNeedingUpdate > 0 && (
+            <span style={{ marginLeft: 8 }}><Badge kind="warn">{devicesNeedingUpdate} devices need update</Badge></span>
+          )}
+        </div>
+        <div style={{ flex: 1 }} />
+        {(role === 'admin' || role === 'org_admin') && (
+          <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowModal(true)}>Add version</Btn>
+        )}
+      </div>
+
+      <Card padding={false}>
+        <table className="table">
+          <thead>
+            <tr><th>Version</th><th>Protocol</th><th>URL</th><th>Notes</th><th>Devices</th><th>Status</th><th>Added</th><th></th></tr>
+          </thead>
+          <tbody>
+            {firmwareList.length === 0 ? (
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>
+                No firmware versions. Add the first version to enable OTA updates.
+              </td></tr>
+            ) : firmwareList.map(fw => (
+              <tr key={fw._id}>
+                <td><span className="font-medium mono">{fw.version}</span></td>
+                <td><Badge kind="outline">{fw.protocol || 'http'}</Badge></td>
+                <td><span className="text-xs mono muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{fw.fileUrl}</span></td>
+                <td className="muted text-xs">{fw.releaseNotes || '—'}</td>
+                <td className="muted text-xs">{fw.upToDateCount || 0} up to date{fw.needsUpdateCount > 0 ? `, ${fw.needsUpdateCount} pending` : ''}</td>
+                <td>
+                  {fw.isActive
+                    ? <Badge kind="ok" dot="ok">Active</Badge>
+                    : <Badge kind="neutral">Inactive</Badge>}
+                </td>
+                <td className="muted text-xs">{fw.createdAt ? new Date(fw.createdAt).toLocaleDateString() : '—'}</td>
+                <td>
+                  <div className="row gap-2">
+                    {!fw.isActive && (role === 'admin' || role === 'org_admin') && (
+                      <Btn kind="secondary" size="sm"
+                        disabled={activating === fw._id}
+                        onClick={() => handleActivate(fw._id)}>
+                        {activating === fw._id ? '…' : 'Set active'}
+                      </Btn>
+                    )}
+                    {!fw.isActive && (role === 'admin' || role === 'org_admin') && (
+                      <Btn kind="danger" size="sm"
+                        disabled={deleting === fw._id}
+                        onClick={() => handleDelete(fw._id)}>
+                        Delete
+                      </Btn>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      {showModal && (
+        <AddFirmwareModal
+          onClose={() => setShowModal(false)}
+          onSaved={onRefetch}
+        />
+      )}
+    </>
+  );
+}
+
+function AddFirmwareModal({ onClose, onSaved }) {
+  const [form, setForm] = useState({ version: '', fileUrl: '', releaseNotes: '', protocol: 'http' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault(); setError('');
+    setLoading(true);
+    try {
+      await api.createFirmware(form);
+      onSaved();
+      onClose();
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">Add firmware version</div>
+          <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
+        </div>
+        <div className="modal__body">
+          {error && <div className="error-banner">{error}</div>}
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Version *</label>
+            <input required className="input mono" placeholder="e.g. 2.5.0" value={form.version}
+              onChange={e => setForm(f => ({ ...f, version: e.target.value }))} />
+          </div>
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Download URL *</label>
+            <input required className="input" placeholder="https://…/firmware-2.5.0.bin" value={form.fileUrl}
+              onChange={e => setForm(f => ({ ...f, fileUrl: e.target.value }))} />
+          </div>
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Protocol</label>
+            <Seg value={form.protocol} onChange={v => setForm(f => ({ ...f, protocol: v }))}
+              options={[{ value: 'http', label: 'HTTP' }, { value: 'mqtt', label: 'MQTT' }]} />
+          </div>
+          <div className="field">
+            <label className="field__label">Release notes</label>
+            <textarea className="textarea" rows={3} value={form.releaseNotes}
+              onChange={e => setForm(f => ({ ...f, releaseNotes: e.target.value }))}
+              placeholder="What changed in this version…" />
+          </div>
+        </div>
+        <div className="modal__foot">
+          <Btn kind="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn kind="primary" icon={IcoCheck} onClick={submit} disabled={loading}>
+            {loading ? 'Adding…' : 'Add version'}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeviceTable({ devices, groupNameMap, getSpark, onRowClick }) {
   return (
     <Card padding={false}>
       <table className="table">
@@ -245,6 +492,7 @@ function DeviceTable({ devices, groupNameMap, getSpark }) {
             <th>Battery</th>
             <th>Signal</th>
             <th>Firmware</th>
+            <th>Protocol</th>
             <th></th>
           </tr>
         </thead>
@@ -253,7 +501,7 @@ function DeviceTable({ devices, groupNameMap, getSpark }) {
             const groupName = (d.groupId && groupNameMap?.[d.groupId]) || '—';
             const sparkData = getSpark(d, i);
             return (
-              <tr key={d._id}>
+              <tr key={d._id} style={{ cursor: 'pointer' }} onClick={() => onRowClick?.(d._id)}>
                 <td><StatusDot status={d.status} pulse={d.status === 'alert'} /></td>
                 <td>
                   <div style={{ fontWeight: 500 }}>{d.name}</div>
@@ -270,6 +518,7 @@ function DeviceTable({ devices, groupNameMap, getSpark }) {
                 <td><BatteryBar pct={d.batteryLevel} /></td>
                 <td><SignalBars n={d.signalStrength} /></td>
                 <td className="muted mono text-xs">{d.firmwareVersion || '—'}</td>
+                <td><Badge kind="outline">{d.protocol || 'http'}</Badge></td>
                 <td style={{ width: 32 }}><Btn kind="ghost" size="sm" icon={IcoMore} /></td>
               </tr>
             );

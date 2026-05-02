@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import DevicesPage from './pages/DevicesPage.jsx';
+import DeviceDetailPage from './pages/DeviceDetailPage.jsx';
 import DataPage from './pages/DataPage.jsx';
 import MapPage from './pages/MapPage.jsx';
 import AlertsPage from './pages/AlertsPage.jsx';
@@ -33,6 +34,7 @@ export default function App() {
         <Route element={<RequireAuth><Layout /></RequireAuth>}>
           <Route index element={<DashboardPage />} />
           <Route path="devices"    element={<DevicesPage />} />
+          <Route path="devices/:id" element={<DeviceDetailPage />} />
           <Route path="data"       element={<DataPage />} />
           <Route path="map"        element={<MapPage />} />
           <Route path="alerts"     element={<AlertsPage />} />

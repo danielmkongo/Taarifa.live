@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api.js';
 import { Btn, Badge, StatusDot, Seg, Card, LineChart, Empty } from '../components/ui/index.jsx';
@@ -51,7 +51,14 @@ export default function DataPage() {
     queryFn: () => api.listDevices({ limit: 100 }),
   });
   const devices = devicesData?.devices || [];
-  const activeDevs = selectedDevs.length > 0 ? selectedDevs : devices.slice(0, 3).map(d => d._id);
+
+  useEffect(() => {
+    if (devices.length > 0 && selectedDevs.length === 0) {
+      setSelectedDevs(devices.slice(0, Math.min(3, devices.length)).map(d => d._id));
+    }
+  }, [devices.length]);
+
+  const activeDevs = selectedDevs;
 
   const series = useMemo(() => {
     const colors = ['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'];
@@ -111,9 +118,7 @@ export default function DataPage() {
                   <label key={d._id} className="row gap-2" style={{ padding: '4px 6px', borderRadius: 4, fontSize: 12.5, cursor: 'pointer' }}>
                     <input type="checkbox" checked={checked}
                       onChange={() => setSelectedDevs(s =>
-                        checked ? s.filter(x => x !== d._id) :
-                          s.length === 0 ? devices.slice(0, 3).map(x => x._id).filter(x => x !== d._id).concat(d._id) :
-                          [...s, d._id]
+                        checked ? s.filter(x => x !== d._id) : [...s, d._id]
                       )}
                       style={{ accentColor: 'var(--accent)' }} />
                     <StatusDot status={d.status} />
@@ -179,14 +184,14 @@ export default function DataPage() {
                 {series.map(s => (
                   <div key={s.name}>
                     <div className="text-xs muted" style={{ marginBottom: 4 }}>{s.name}</div>
-                    <LineChart series={[s]} height={120} showLegend={false} area />
+                    <LineChart series={[s]} height={120} showLegend={false} area={chartType === 'area'} bar={chartType === 'bar'} />
                   </div>
                 ))}
               </div>
             ) : (
               <LineChart series={series} height={300}
                 yLabel={SENSORS.find(s => s.key === selectedSensors[0])?.unit}
-                area={chartType !== 'line'} />
+                area={chartType === 'area'} bar={chartType === 'bar'} />
             )}
           </Card>
 

@@ -3,6 +3,26 @@ import { authenticateDevice } from '../middleware/auth.js';
 import { ObjectId } from 'mongodb';
 import { processReadings } from '../services/readings.js';
 
+function compareVersion(a, b) {
+  const parse = (v) => String(v).replace(/[^0-9.]/g, '').split('.').slice(0, 3).map(n => parseInt(n, 10) || 0);
+  const [aMaj, aMin, aPat] = parse(a);
+  const [bMaj, bMin, bPat] = parse(b);
+  if (aMaj !== bMaj) return aMaj < bMaj ? -1 : 1;
+  if (aMin !== bMin) return aMin < bMin ? -1 : 1;
+  if (aPat !== bPat) return aPat < bPat ? -1 : 1;
+  return 0;
+}
+
+async function getFirmwareUpdate(device) {
+  const active = await col('firmwareVersions').findOne({ orgId: device.orgId, isActive: true });
+  if (!active) return null;
+  const dv = device.firmwareVersion || null;
+  if (!dv || compareVersion(dv, active.version) < 0) {
+    return { version: active.version, fileUrl: active.fileUrl, protocol: active.protocol };
+  }
+  return null;
+}
+
 export default async function ingestRoutes(fastify) {
   const RATE_INGEST = {
     config: { rateLimit: { max: 600, timeWindow: '1 minute' } },
@@ -34,7 +54,10 @@ export default async function ingestRoutes(fastify) {
 
     await processReadings(req.device, ts, readings, fastify);
 
-    return { ok: true, accepted: readings.length };
+    const firmwareUpdate = await getFirmwareUpdate(req.device);
+    const res = { ok: true, accepted: readings.length };
+    if (firmwareUpdate) res.firmwareUpdate = firmwareUpdate;
+    return res;
   });
 
   // POST /ingest/batch — store-and-forward batch
@@ -56,7 +79,10 @@ export default async function ingestRoutes(fastify) {
       { $set: { lastSeenAt: new Date(), status: 'online', updatedAt: new Date() } }
     );
 
-    return { ok: true, accepted: total };
+    const firmwareUpdate = await getFirmwareUpdate(req.device);
+    const res = { ok: true, accepted: total };
+    if (firmwareUpdate) res.firmwareUpdate = firmwareUpdate;
+    return res;
   });
 
   // GET /ingest/config — device fetches its config

@@ -91,6 +91,23 @@ export const api = {
     return res.blob();
   },
 
+  // Firmware
+  listFirmware:    ()      => request('GET',    '/firmware'),
+  createFirmware:  (body)  => request('POST',   '/firmware', body),
+  activateFirmware:(id)    => request('PATCH',  `/firmware/${id}/activate`),
+  deleteFirmware:  (id)    => request('DELETE', `/firmware/${id}`),
+  checkFirmware:   (deviceId, apiKey) => fetch(`/api/v1/firmware/check/${deviceId}`, { headers: { 'x-api-key': apiKey } }).then(r => r.json()),
+
+  // Device detail
+  getDeviceWithLatest: async (id) => {
+    const [device, latest] = await Promise.all([
+      request('GET', `/devices/${id}`),
+      request('GET', `/data/latest/${id}`),
+    ]);
+    return { device, latest };
+  },
+  getDeviceReadings: (deviceId, params) => request('GET', `/data/readings?deviceId=${deviceId}&` + new URLSearchParams(params)),
+
   // E-Calendar
   listEcalGroups:    ()      => request('GET',    '/ecal/groups'),
   createEcalGroup:   (body)  => request('POST',   '/ecal/groups', body),

@@ -35,7 +35,7 @@ export default async function deviceRoutes(fastify) {
 
   // POST /devices — register new device
   fastify.post('/', { preHandler }, async (req, reply) => {
-    const { name, description, groupId, locationName, lat, lon, altitudeM, firmwareVersion } = req.body;
+    const { name, description, groupId, locationName, lat, lon, altitudeM, firmwareVersion, protocol } = req.body;
     if (!name) return reply.badRequest('name is required');
 
     const { apiKey, apiKeyPrefix, apiKeyHash } = generateApiKey();
@@ -56,6 +56,7 @@ export default async function deviceRoutes(fastify) {
       configPending: false,
       apiKeyHash, apiKeyPrefix,
       isActive: true,
+      protocol: protocol || 'http',
       createdAt: now, updatedAt: now,
     };
 
@@ -67,7 +68,7 @@ export default async function deviceRoutes(fastify) {
 
   // PATCH /devices/:id
   fastify.patch('/:id', { preHandler }, async (req, reply) => {
-    const { name, description, groupId, locationName, lat, lon, altitudeM, config: cfg, isActive } = req.body;
+    const { name, description, groupId, locationName, lat, lon, altitudeM, config: cfg, isActive, protocol } = req.body;
     const update = { updatedAt: new Date() };
 
     if (name !== undefined) update.name = name;
@@ -78,6 +79,7 @@ export default async function deviceRoutes(fastify) {
     if (altitudeM !== undefined) update.altitudeM = altitudeM;
     if (cfg !== undefined) { update.config = cfg; update.configPending = true; }
     if (isActive !== undefined) update.isActive = isActive;
+    if (protocol !== undefined) update.protocol = protocol;
 
     await col('devices').updateOne(
       { _id: new ObjectId(req.params.id), orgId: req.user.orgId },
