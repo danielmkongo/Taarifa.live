@@ -7,20 +7,29 @@ import {
   IcoHome, IcoCpu, IcoData, IcoMap, IcoBell, IcoFileChart,
   IcoMonitor, IcoCalendar, IcoUsers, IcoSettings,
   IcoSearch, IcoSun, IcoMoon, IcoBell2, IcoExt, IcoZap,
+  IcoLayers, IcoChevDown,
 } from '../ui/Icons.jsx';
-import { Btn } from '../ui/index.jsx';
+import { Btn, Seg } from '../ui/index.jsx';
 
 const PAGE_TITLES = {
-  '/':            ['Monitoring', 'Overview'],
-  '/devices':     ['Monitoring', 'Devices'],
-  '/data':        ['Monitoring', 'Data Explorer'],
-  '/map':         ['Monitoring', 'Map'],
-  '/alerts':      ['Monitoring', 'Alerts'],
-  '/exports':     ['Monitoring', 'Reports'],
-  '/ecalendar':   ['Signage', 'E-Calendar'],
-  '/users':       ['Organisation', 'Members'],
-  '/settings':    ['Organisation', 'Settings'],
+  '/':             ['Monitoring',     'Overview'],
+  '/devices':      ['Monitoring',     'Devices'],
+  '/data':         ['Monitoring',     'Data Explorer'],
+  '/map':          ['Monitoring',     'Map'],
+  '/alerts':       ['Monitoring',     'Alerts'],
+  '/exports':      ['Monitoring',     'Reports'],
+  '/ecalendar':    ['Signage',        'Overview'],
+  '/users':        ['Organisation',   'Members'],
+  '/settings':     ['Organisation',   'Settings'],
 };
+
+function isSignagePath(pathname) {
+  return pathname.startsWith('/ecalendar');
+}
+
+function ecalTab(search) {
+  return new URLSearchParams(search).get('tab') || 'overview';
+}
 
 export default function Layout() {
   const { user, logout } = useAuthStore();
@@ -28,7 +37,7 @@ export default function Layout() {
   const location = useLocation();
   const [theme, setTheme] = useState(() => localStorage.getItem('taarifa-theme') || 'light');
   const [workspace, setWorkspace] = useState(() =>
-    location.pathname === '/ecalendar' ? 'signage' : 'monitoring'
+    isSignagePath(location.pathname) ? 'signage' : 'monitoring'
   );
 
   useEffect(() => {
@@ -37,10 +46,7 @@ export default function Layout() {
   }, [theme]);
 
   useEffect(() => {
-    if (location.pathname === '/ecalendar') setWorkspace('signage');
-    else if (workspace === 'signage' && location.pathname !== '/ecalendar') {
-      // keep signage workspace when on ecalendar
-    }
+    if (isSignagePath(location.pathname)) setWorkspace('signage');
   }, [location.pathname]);
 
   const { data: alertData } = useQuery({
@@ -54,7 +60,7 @@ export default function Layout() {
     refetchInterval: 120_000,
   });
 
-  const alertCount = alertData?.total ?? 0;
+  const alertCount  = alertData?.total ?? 0;
   const deviceCount = deviceData?.total ?? 0;
 
   const monitoringNav = [
@@ -66,8 +72,12 @@ export default function Layout() {
     { to: '/exports', label: 'Reports',       Icon: IcoFileChart },
   ];
 
+  const currentTab = ecalTab(location.search);
   const signageNav = [
-    { to: '/ecalendar', label: 'E-Calendar', Icon: IcoCalendar },
+    { to: '/ecalendar',                  label: 'Overview',   Icon: IcoHome,       tab: 'overview' },
+    { to: '/ecalendar?tab=content',      label: 'Content',    Icon: IcoLayers,     tab: 'content' },
+    { to: '/ecalendar?tab=campaigns',    label: 'Campaigns',  Icon: IcoCalendar,   tab: 'campaigns' },
+    { to: '/ecalendar?tab=screens',      label: 'Screens',    Icon: IcoMonitor,    tab: 'screens' },
   ];
 
   const adminNav = [
@@ -76,14 +86,30 @@ export default function Layout() {
   ];
 
   const nav = workspace === 'monitoring' ? monitoringNav : signageNav;
-  const crumbs = PAGE_TITLES[location.pathname] || ['Monitoring', 'Overview'];
+
+  // Topbar breadcrumb
+  let crumbs = PAGE_TITLES[location.pathname] || ['Monitoring', 'Overview'];
+  if (isSignagePath(location.pathname)) {
+    const tabLabels = { overview: 'Overview', content: 'Content', campaigns: 'Campaigns', screens: 'Screens' };
+    crumbs = ['Signage', tabLabels[currentTab] || 'Overview'];
+  }
+
   const initials = user?.fullName?.split(' ').map(s => s[0]).join('').slice(0, 2) || 'U';
   const role = user?.role || 'viewer';
+  const orgName = 'TANAPA'; // shown below workspace label
 
   async function handleLogout() {
     await api.logout({}).catch(() => {});
     logout();
     navigate('/login');
+  }
+
+  function isNavActive(n) {
+    if (!isSignagePath(location.pathname)) {
+      return location.pathname === n.to;
+    }
+    // signage: match by tab
+    return n.tab === currentTab;
   }
 
   return (
@@ -108,8 +134,9 @@ export default function Layout() {
             </div>
             <div className="workspace__label">
               <div>{workspace === 'monitoring' ? 'Monitoring' : 'Signage'}</div>
-              <small>{user?.fullName || 'Taarifa'}</small>
+              <small>{orgName}</small>
             </div>
+            <IcoChevDown size={14} style={{ color: 'var(--fg-subtle)' }} />
           </button>
         </div>
 
@@ -117,8 +144,9 @@ export default function Layout() {
           <div className="nav__section">
             <div className="nav__heading">{workspace === 'monitoring' ? 'Monitoring' : 'Digital signage'}</div>
             {nav.map(n => (
-              <a key={n.to}
-                className={`nav__item ${location.pathname === n.to ? 'active' : ''}`}
+              <a key={n.label}
+                className={`nav__item ${isNavActive(n) ? 'active' : ''}`}
+                href={n.to}
                 onClick={e => { e.preventDefault(); navigate(n.to); }}>
                 <n.Icon className="nav__icon" size={16} />
                 <span>{n.label}</span>
@@ -129,12 +157,13 @@ export default function Layout() {
             ))}
           </div>
 
-          {(role === 'admin' || role === 'org_admin' || role === 'super_admin') && (
+          {(role === 'admin' || role === 'org_admin' || role === 'super_admin' || role === 'manager') && (
             <div className="nav__section">
               <div className="nav__heading">Organisation</div>
               {adminNav.map(n => (
                 <a key={n.to}
                   className={`nav__item ${location.pathname === n.to ? 'active' : ''}`}
+                  href={n.to}
                   onClick={e => { e.preventDefault(); navigate(n.to); }}>
                   <n.Icon className="nav__icon" size={16} />
                   <span>{n.label}</span>
@@ -148,7 +177,7 @@ export default function Layout() {
           <div className="avatar">{initials}</div>
           <div className="user__info">
             <div className="user__name">{user?.fullName || 'User'}</div>
-            <div className="user__role">{role.replace('_', ' ')}</div>
+            <div className="user__role">{role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} · {orgName}</div>
           </div>
           <button className="btn btn--ghost btn--icon btn--sm" onClick={handleLogout} title="Sign out">
             <IcoExt size={13} />
@@ -169,11 +198,12 @@ export default function Layout() {
           </div>
           <div className="search">
             <IcoSearch size={13} />
-            <input placeholder="Search devices, alerts…" />
+            <input placeholder="Search devices, alerts, sites…" />
             <span className="kbd">⌘K</span>
           </div>
           <div className="topbar__actions">
-            <Btn kind="ghost" size="sm" icon={theme === 'dark' ? IcoSun : IcoMoon}
+            <Btn kind="ghost" size="sm"
+              icon={theme === 'dark' ? IcoSun : IcoMoon}
               onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
               title="Toggle theme" />
             <Btn kind="ghost" size="sm" icon={IcoBell2} title="Notifications" />

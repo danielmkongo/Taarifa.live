@@ -67,7 +67,7 @@ export default async function alertRoutes(fastify) {
       .distinct('_id', { orgId: req.user.orgId });
     filter.deviceId = { $in: orgDeviceIds };
 
-    if (state) filter.state = state;
+    if (state && state !== 'all') filter.state = state;
     if (severity) filter.severity = severity;
     if (deviceId) filter.deviceId = new ObjectId(deviceId);
 

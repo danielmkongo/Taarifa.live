@@ -10,6 +10,54 @@ import ExcelJS from 'exceljs';
 export default async function exportRoutes(fastify) {
   const preHandler = [authenticate];
 
+  // GET /exports/download — direct synchronous download (no job queue)
+  fastify.get('/download', { preHandler }, async (req, reply) => {
+    const { sensorKey, from, to, format: fmt = 'csv', deviceId } = req.query;
+    if (!from || !to) return reply.badRequest('from and to required');
+
+    const match = {
+      'meta.orgId': req.user.orgId,
+      timestamp: { $gte: new Date(from), $lte: new Date(to) },
+    };
+    if (sensorKey) match['meta.sensorKey'] = sensorKey;
+    if (deviceId) {
+      const device = await col('devices').findOne({ _id: new ObjectId(deviceId), orgId: req.user.orgId });
+      if (!device) return reply.notFound();
+      match['meta.deviceId'] = device._id;
+    }
+
+    const rows = await col('sensorReadings')
+      .find(match, { projection: { timestamp: 1, 'meta.sensorKey': 1, 'meta.deviceId': 1, value: 1, quality: 1 } })
+      .sort({ timestamp: 1 })
+      .limit(50000)
+      .toArray();
+
+    if (fmt === 'xlsx') {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Readings');
+      ws.columns = [
+        { header: 'Timestamp', key: 'ts' },
+        { header: 'Device', key: 'device' },
+        { header: 'Sensor', key: 'sensor' },
+        { header: 'Value', key: 'value' },
+        { header: 'Quality', key: 'quality' },
+      ];
+      rows.forEach(r => ws.addRow({ ts: r.timestamp, device: r.meta.deviceId.toString(), sensor: r.meta.sensorKey, value: r.value, quality: r.quality }));
+      const buf = await wb.xlsx.writeBuffer();
+      reply.header('Content-Disposition', 'attachment; filename="export.xlsx"');
+      reply.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      return reply.send(buf);
+    } else {
+      const csv = stringify(
+        rows.map(r => [r.timestamp.toISOString(), r.meta.deviceId.toString(), r.meta.sensorKey, r.value, r.quality]),
+        { header: true, columns: ['timestamp', 'deviceId', 'sensor', 'value', 'quality'] }
+      );
+      reply.header('Content-Disposition', 'attachment; filename="export.csv"');
+      reply.header('Content-Type', 'text/csv');
+      return reply.send(csv);
+    }
+  });
+
   // POST /exports — request export job
   fastify.post('/', { preHandler }, async (req, reply) => {
     const { format = 'csv', deviceId, sensorKey, from, to } = req.body;

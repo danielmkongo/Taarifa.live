@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api.js';
-import { Btn, Badge, StatusDot, Seg, Card, LineChart, Empty, Spinner } from '../components/ui/index.jsx';
-import { IcoDownload, IcoBookmark, IcoShare, IcoFlame } from '../components/ui/Icons.jsx';
+import { Btn, Badge, StatusDot, Seg, Card, LineChart, Empty } from '../components/ui/index.jsx';
+import { IcoDownload, IcoBookmark, IcoShare, IcoFlame, IcoStar, IcoMore, IcoArrowRight } from '../components/ui/Icons.jsx';
 
 const SENSORS = [
   { key: 'temperature', label: 'Temperature', unit: '°C',  color: 'var(--c1)' },
@@ -11,6 +11,18 @@ const SENSORS = [
   { key: 'pressure',    label: 'Pressure',    unit: 'hPa', color: 'var(--c5)' },
   { key: 'wind_speed',  label: 'Wind speed',  unit: 'm/s', color: 'var(--c4)' },
   { key: 'co2',         label: 'CO₂',         unit: 'ppm', color: 'var(--c3)' },
+];
+
+const SAVED_VIEWS = [
+  { id: 'sv1', name: 'Serengeti — temperature compare', count: 4 },
+  { id: 'sv2', name: 'Wetland rainfall · 7d',           count: 3 },
+  { id: 'sv3', name: 'Highland pressure anomalies',     count: 2 },
+];
+
+const ANOMALIES = [
+  { time: '14:32', device: 'TRF-003', sensor: 'temperature', value: '39.4°C', deviation: '+3.1σ', kind: 'spike' },
+  { time: '11:08', device: 'TRF-007', sensor: 'co2',         value: '1842 ppm', deviation: '+2.9σ', kind: 'spike' },
+  { time: '08:14', device: 'TRF-009', sensor: 'temperature', value: 'gap',    deviation: '6m missing', kind: 'gap' },
 ];
 
 function rng(seed) {
@@ -32,6 +44,7 @@ export default function DataPage() {
   const [selectedSensors, setSelectedSensors] = useState(['temperature']);
   const [selectedDevs, setSelectedDevs] = useState([]);
   const [overlay, setOverlay] = useState(true);
+  const [chartType, setChartType] = useState('line');
 
   const { data: devicesData, isLoading } = useQuery({
     queryKey: ['devices'],
@@ -48,8 +61,10 @@ export default function DataPage() {
       const dev = devices.find(d => d._id === devId);
       selectedSensors.forEach(sk => {
         const sensor = SENSORS.find(s => s.key === sk);
-        const data = genSeries(48, sk === 'temperature' ? 25 : sk === 'humidity' ? 55 : 5,
-          sk === 'temperature' ? 1.4 : 2.0, 0, i * 7 + 1);
+        const data = genSeries(48,
+          sk === 'temperature' ? 25 : sk === 'humidity' ? 55 : 5,
+          sk === 'temperature' ? 1.4 : 2.0,
+          0, i * 7 + 1);
         out.push({ name: `${dev?.name || devId.slice(-6)} · ${sensor?.label}`, color: colors[i % 6], data });
         i++;
       });
@@ -73,6 +88,20 @@ export default function DataPage() {
 
       <div className="grid" style={{ gridTemplateColumns: '260px 1fr', alignItems: 'flex-start' }}>
         <div className="card" style={{ padding: 14 }}>
+          <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6 }}>Saved views</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 14 }}>
+            {SAVED_VIEWS.map(v => (
+              <button key={v.id} className="row gap-2"
+                style={{ padding: '6px 8px', borderRadius: 4, fontSize: 12.5, textAlign: 'left', color: 'var(--fg-muted)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <IcoStar size={12} />
+                <span style={{ flex: 1 }}>{v.name}</span>
+                <span className="text-xs subtle mono">{v.count}</span>
+              </button>
+            ))}
+          </div>
+
           <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6 }}>Devices</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 12, maxHeight: 200, overflowY: 'auto' }}>
             {isLoading ? <div className="skel" style={{ height: 80 }} /> :
@@ -117,7 +146,7 @@ export default function DataPage() {
           </div>
 
           <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6 }}>Time range</div>
-          <Seg value={range} onChange={setRange} options={['1h','24h','7d','30d']} />
+          <Seg value={range} onChange={setRange} options={['1h','24h','7d','30d','custom']} />
 
           <div className="text-xs uppercase tracking-wide subtle" style={{ marginBottom: 6, marginTop: 12 }}>Granularity</div>
           <Seg value={granularity} onChange={setGranularity} options={['raw','5m','1h','1d']} />
@@ -129,14 +158,20 @@ export default function DataPage() {
 
         <div className="grid" style={{ gap: 16 }}>
           <Card
-            title={`${selectedSensors.map(k => SENSORS.find(s => s.key === k)?.label).join(' · ')} · ${activeDevs.length} device(s)`}
-            sub={`${range} · ${granularity} · ${series.length} series`}
-            actions={
+            title={`${selectedSensors.map(k => SENSORS.find(s => s.key === k)?.label).join(' · ')} · ${activeDevs.length} devices`}
+            sub={`${range} · ${granularity} buckets · ${series.length} series`}
+            actions={<>
+              <Seg value={chartType} onChange={setChartType} options={[
+                { value: 'line', label: 'Line' },
+                { value: 'area', label: 'Area' },
+                { value: 'bar',  label: 'Bar' },
+              ]} />
               <Seg value={overlay ? 'overlay' : 'split'} onChange={v => setOverlay(v === 'overlay')} options={[
                 { value: 'overlay', label: 'Overlay' },
                 { value: 'split',   label: 'Stack' },
               ]} />
-            }>
+              <Btn kind="ghost" size="sm" icon={IcoMore} />
+            </>}>
             {series.length === 0 ? (
               <Empty icon={null} title="Select devices and sensors" hint="Use the panel on the left." />
             ) : !overlay ? (
@@ -151,18 +186,53 @@ export default function DataPage() {
             ) : (
               <LineChart series={series} height={300}
                 yLabel={SENSORS.find(s => s.key === selectedSensors[0])?.unit}
-                area />
+                area={chartType !== 'line'} />
             )}
           </Card>
 
           <div className="grid grid-cols-4">
-            {['Average','Minimum','Maximum','Samples'].map(l => (
-              <div key={l} className="card" style={{ padding: 12 }}>
-                <div className="text-xs muted">{l}</div>
-                <div className="text-xl font-semibold tabnum" style={{ marginTop: 4 }}>—</div>
+            {[
+              { l: 'Average', v: '—' },
+              { l: 'Minimum', v: '—' },
+              { l: 'Maximum', v: '—' },
+              { l: 'Samples', v: '—' },
+            ].map(s => (
+              <div key={s.l} className="card" style={{ padding: 12 }}>
+                <div className="text-xs muted">{s.l}</div>
+                <div className="text-xl font-semibold tabnum" style={{ marginTop: 4 }}>{s.v}</div>
               </div>
             ))}
           </div>
+
+          <Card title="Detected anomalies" sub="Statistical outliers vs 30-day baseline · click to inspect"
+            actions={<Btn kind="ghost" size="sm">Tune sensitivity</Btn>}>
+            <table className="table" style={{ marginLeft: -16, marginRight: -16, width: 'calc(100% + 32px)' }}>
+              <thead>
+                <tr>
+                  <th style={{ paddingLeft: 16 }}>Time</th>
+                  <th>Device</th>
+                  <th>Sensor</th>
+                  <th>Value</th>
+                  <th>Deviation</th>
+                  <th>Kind</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {ANOMALIES.map((a, i) => (
+                  <tr key={i}>
+                    <td className="mono text-xs" style={{ paddingLeft: 16 }}>{a.time}</td>
+                    <td className="mono text-xs">{a.device}</td>
+                    <td>{a.sensor}</td>
+                    <td className="tabnum mono">{a.value}</td>
+                    <td><Badge kind={a.kind === 'gap' ? 'neutral' : 'warn'}>{a.deviation}</Badge></td>
+                    <td><Badge kind="outline">{a.kind}</Badge></td>
+                    <td><Btn kind="ghost" size="sm" iconRight={IcoArrowRight}>Inspect</Btn></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         </div>
       </div>
     </div>

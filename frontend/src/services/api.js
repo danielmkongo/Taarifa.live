@@ -58,10 +58,12 @@ export const api = {
   createGroup:  (body)   => request('POST',  '/devices/groups', body),
 
   // Data
-  getReadings: (params) => request('GET', '/data/readings?' + new URLSearchParams(params)),
-  getLatest:   (id)     => request('GET', `/data/latest/${id}`),
-  getStats:    (id, p)  => request('GET', `/data/stats/${id}?` + new URLSearchParams(p)),
-  getMapData:  ()       => request('GET', '/data/map'),
+  getReadings:   (params) => request('GET', '/data/readings?' + new URLSearchParams(params)),
+  getLatest:     (id)     => request('GET', `/data/latest/${id}`),
+  getStats:      (id, p)  => request('GET', `/data/stats/${id}?` + new URLSearchParams(p)),
+  getMapData:    ()       => request('GET', '/data/map'),
+  getSparklines: (p)      => request('GET', '/data/sparklines?' + new URLSearchParams(p || {})),
+  getFleet:      ()       => request('GET', '/data/fleet'),
 
   // Alerts
   listAlertRules:   ()       => request('GET',    '/alerts/rules'),
@@ -80,6 +82,14 @@ export const api = {
   createExport:   (body) => request('POST', '/exports', body),
   getExportJob:   (id)   => request('GET',  `/exports/${id}`),
   downloadExport: (id)   => `${BASE}/exports/${id}/download`,
+  exportReadings: async (params) => {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${BASE}/exports/download?` + new URLSearchParams(params), { headers });
+    if (!res.ok) throw new Error(`Export failed: HTTP ${res.status}`);
+    return res.blob();
+  },
 
   // E-Calendar
   listEcalGroups:    ()      => request('GET',    '/ecal/groups'),
