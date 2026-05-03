@@ -201,8 +201,8 @@ function ContentModal({ onClose, onSaved, groups = [], devices = [], initial = n
 }
 
 // ─── Screen modal ───────────────────────────────────────────────────────────────
-function ScreenModal({ onClose, onSaved, groups = [], iotDevices = [] }) {
-  const [form, setForm] = useState({ name: '', location: '', groupId: '', iotDeviceId: '' });
+function ScreenModal({ onClose, onSaved, groups = [] }) {
+  const [form, setForm] = useState({ name: '', location: '', groupId: '' });
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -276,18 +276,8 @@ function ScreenModal({ onClose, onSaved, groups = [], iotDevices = [] }) {
                 {groups.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
               </select>
             </div>
-            <div className="field">
-              <label className="field__label">Linked IoT device (optional)</label>
-              <select className="select" value={form.iotDeviceId}
-                onChange={e => setForm(f => ({ ...f, iotDeviceId: e.target.value }))}>
-                <option value="">None</option>
-                {iotDevices.map(d => (
-                  <option key={d._id} value={d._id}>{d.name}{d.locationName ? ` · ${d.locationName}` : ''}</option>
-                ))}
-              </select>
-              <div className="text-xs muted" style={{ marginTop: 3 }}>
-                Link to a sensor logger to pull live readings onto this display.
-              </div>
+            <div className="text-xs muted" style={{ padding: '4px 0' }}>
+              This display authenticates via MQTT using an <code>x-api-key</code> header.
             </div>
           </div>
           <div className="modal__foot">
@@ -655,12 +645,10 @@ export default function ECalendarPage() {
   const { data: rawContent } = useQuery({ queryKey: ['ecal-content'], queryFn: () => api.listEcalContent() });
   const { data: rawScreens } = useQuery({ queryKey: ['ecal-devices'], queryFn: api.listEcalDevices, refetchInterval: 30_000 });
   const { data: rawGroups }  = useQuery({ queryKey: ['ecal-groups'],  queryFn: api.listEcalGroups });
-  const { data: rawIotDevices } = useQuery({ queryKey: ['devices-ecal'], queryFn: () => api.listDevices({ limit: 100 }) });
 
-  const content    = Array.isArray(rawContent)    ? rawContent    : (rawContent?.items    || []);
-  const screens    = Array.isArray(rawScreens)    ? rawScreens    : (rawScreens?.items    || []);
-  const groups     = Array.isArray(rawGroups)     ? rawGroups     : (rawGroups?.items     || []);
-  const iotDevices = rawIotDevices?.devices || [];
+  const content = Array.isArray(rawContent) ? rawContent : (rawContent?.items || []);
+  const screens = Array.isArray(rawScreens) ? rawScreens : (rawScreens?.items || []);
+  const groups  = Array.isArray(rawGroups)  ? rawGroups  : (rawGroups?.items  || []);
 
   const delContent = useMutation({
     mutationFn: api.deleteEcalContent,
@@ -740,7 +728,6 @@ export default function ECalendarPage() {
       {showScreenModal && (
         <ScreenModal
           groups={groups}
-          iotDevices={iotDevices}
           onClose={() => setShowScreenModal(false)}
           onSaved={() => qc.invalidateQueries({ queryKey: ['ecal-devices'] })}
         />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { subHours, format } from 'date-fns';
 import { api } from '../services/api.js';
@@ -36,14 +36,13 @@ function granularityFor(range, fromIso, toIso) {
 const LABEL_FMT = { '1h': 'HH:mm:ss', '24h': 'HH:mm', '7d': 'MMM d', '30d': 'MMM d', custom: 'MMM d HH:mm' };
 
 export default function DataPage() {
-  const [deviceId, setDeviceId]         = useState('');
-  const [selected, setSelected]         = useState(new Set(['temperature']));
-  const [range, setRange]               = useState('24h');
-  const [chartType, setChartType]       = useState('area');
-  const [tableSensor, setTableSensor]   = useState('temperature');
-  const [customFrom, setCustomFrom]     = useState('');
-  const [customTo, setCustomTo]         = useState('');
-  const [exporting, setExporting]       = useState(false);
+  const [deviceId, setDeviceId]   = useState('');
+  const [selected, setSelected]   = useState(new Set(['temperature']));
+  const [range, setRange]         = useState('24h');
+  const [chartType, setChartType] = useState('area');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo]     = useState('');
+  const [exporting, setExporting]   = useState(false);
 
   const { data: devicesData, isLoading: loadingDevices } = useQuery({
     queryKey: ['devices'],
@@ -58,13 +57,8 @@ export default function DataPage() {
   function toggleSensor(key) {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(key) && next.size > 1) {
-        next.delete(key);
-        if (tableSensor === key) setTableSensor([...next][0]);
-      } else if (!next.has(key)) {
-        next.add(key);
-        setTableSensor(key);
-      }
+      if (next.has(key) && next.size > 1) next.delete(key);
+      else if (!next.has(key)) next.add(key);
       return next;
     });
   }
@@ -124,15 +118,22 @@ export default function DataPage() {
     };
   }).filter(Boolean);
 
-  const tableSensorIdx  = sensorKeysList.indexOf(tableSensor);
-  const tableReadings   = (tableSensorIdx >= 0 ? sensorQueries[tableSensorIdx]?.data?.readings : null) || [];
-  const tableSensorMeta = SENSORS.find(s => s.key === tableSensor);
+  const mergedRows = useMemo(() => {
+    const map = new Map();
+    sensorKeysList.forEach((sk, qi) => {
+      (sensorQueries[qi]?.data?.readings || []).forEach(r => {
+        if (!map.has(r.timestamp)) map.set(r.timestamp, { timestamp: r.timestamp });
+        map.get(r.timestamp)[sk] = r.value;
+      });
+    });
+    return [...map.values()].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  }, [sensorKeysList.join(','), sensorQueries.map(q => q.dataUpdatedAt).join(',')]);
 
   async function handleExport(fmt) {
     if (!deviceId) return;
     setExporting(true);
     try {
-      const sk   = tableSensor || sensorKeysList[0];
+      const sk   = sensorKeysList[0];
       const blob = await api.exportReadings({ deviceId, sensorKey: sk, from: fromIso, to: toIso, format: fmt });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -295,25 +296,9 @@ export default function DataPage() {
       {/* ── Table ──────────────────────────────────────────────── */}
       <Card
           title="Readings table"
-          sub={tableReadings.length
-            ? `${tableReadings.length} rows · ${isAggregate ? granularity + ' averages' : 'raw'}`
+          sub={mergedRows.length
+            ? `${mergedRows.length} rows · ${isAggregate ? granularity + ' averages' : 'raw'}`
             : 'No data'}
-          actions={sensorKeysList.length > 1 ? (
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {sensorKeysList.map(sk => {
-                const s = SENSORS.find(x => x.key === sk);
-                const on = tableSensor === sk;
-                return (
-                  <button key={sk} onClick={() => setTableSensor(sk)} style={{
-                    padding: '3px 10px', borderRadius: 9999, fontSize: 12, fontWeight: 600,
-                    border: `1.5px solid ${on ? 'transparent' : 'var(--border)'}`,
-                    background: on ? (s?.color || 'var(--accent)') : 'transparent',
-                    color: on ? 'white' : 'var(--fg-muted)', cursor: 'pointer',
-                  }}>{s?.label || sk}</button>
-                );
-              })}
-            </div>
-          ) : null}
           style={{ marginBottom: 16 }}>
           {!deviceId ? (
             <Empty icon={null} title="No device selected" hint="Pick a device from the selector above." />
@@ -321,34 +306,31 @@ export default function DataPage() {
             <Empty icon={null} title="Set date range" hint="Enter both From and To dates to load data." />
           ) : loadingChart ? (
             <div style={{ padding: 48, display: 'grid', placeItems: 'center' }}><Spinner /></div>
-          ) : tableReadings.length === 0 ? (
+          ) : mergedRows.length === 0 ? (
             <Empty icon={null} title="No data" hint="No readings for the selected range." />
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowX: 'auto', maxHeight: 400, overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
+                <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-elev)', zIndex: 1 }}>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     <Th>Time</Th>
-                    <Th right>Value ({tableSensorMeta?.unit || ''})</Th>
-                    {isAggregate && <><Th right>Min</Th><Th right>Max</Th><Th right>Count</Th></>}
+                    {sensorKeysList.map(sk => {
+                      const s = SENSORS.find(x => x.key === sk);
+                      return <Th key={sk} right>{s?.label || sk}{s?.unit ? ` (${s.unit})` : ''}</Th>;
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {[...tableReadings].reverse().map((r, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}>
-                      <td style={{ padding: '7px 12px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-muted)' }}>
-                        {format(new Date(r.timestamp), 'MMM d, yyyy HH:mm:ss')}
+                  {mergedRows.map((row, i) => (
+                    <tr key={row.timestamp} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}>
+                      <td style={{ padding: '7px 12px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>
+                        {format(new Date(row.timestamp), 'MMM d, yyyy HH:mm')}
                       </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                        {typeof r.value === 'number' ? r.value.toFixed(2) : r.value}
-                      </td>
-                      {isAggregate && (
-                        <>
-                          <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.min != null ? r.min.toFixed(2) : '—'}</td>
-                          <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.max != null ? r.max.toFixed(2) : '—'}</td>
-                          <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.count}</td>
-                        </>
-                      )}
+                      {sensorKeysList.map(sk => (
+                        <td key={sk} style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                          {row[sk] != null ? (typeof row[sk] === 'number' ? row[sk].toFixed(2) : row[sk]) : '—'}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>

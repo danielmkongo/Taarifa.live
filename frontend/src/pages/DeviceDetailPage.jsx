@@ -526,7 +526,6 @@ export default function DeviceDetailPage() {
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       <DTh>Time</DTh>
                       <DTh right>Value ({sensorUnit})</DTh>
-                      {isAggregate && <><DTh right>Min</DTh><DTh right>Max</DTh><DTh right>Count</DTh></>}
                     </tr>
                   </thead>
                   <tbody>
@@ -538,13 +537,6 @@ export default function DeviceDetailPage() {
                         <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                           {typeof r.value === 'number' ? r.value.toFixed(2) : r.value}
                         </td>
-                        {isAggregate && (
-                          <>
-                            <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.min != null ? r.min.toFixed(2) : '—'}</td>
-                            <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.max != null ? r.max.toFixed(2) : '—'}</td>
-                            <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.count}</td>
-                          </>
-                        )}
                       </tr>
                     ))}
                   </tbody>

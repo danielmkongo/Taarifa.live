@@ -134,13 +134,12 @@ export default async function ecalRoutes(fastify) {
   });
 
   fastify.post('/devices', { preHandler: auth }, async (req, reply) => {
-    const { name, location, groupId, iotDeviceId } = req.body;
+    const { name, location, groupId } = req.body;
     if (!name) return reply.badRequest('name required');
     const { apiKey, apiKeyPrefix, apiKeyHash } = generateApiKey();
     const r = await col('ecalDevices').insertOne({
       orgId: req.user.orgId,
-      groupId:     groupId     ? new ObjectId(groupId)     : null,
-      iotDeviceId: iotDeviceId ? new ObjectId(iotDeviceId) : null,
+      groupId: groupId ? new ObjectId(groupId) : null,
       name, location, apiKeyHash, apiKeyPrefix,
       status: 'offline', config: {},
       firmwareVersion: null, otaPending: false, otaVersion: null, otaUrl: null,
