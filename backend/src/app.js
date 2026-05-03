@@ -9,6 +9,7 @@ import fastifyWebsocket from '@fastify/websocket';
 
 import { config } from './config/index.js';
 import { connectDB } from './config/db.js';
+import { authenticate as mwAuthenticate } from './middleware/auth.js';
 import { startMqttClient } from './mqtt/client.js';
 import { startWorkers } from './workers/index.js';
 
@@ -60,7 +61,12 @@ export async function buildApp(fastify) {
   await fastify.register(fastifySensible);
   await fastify.register(fastifyHelmet, { global: true });
   await fastify.register(fastifyCors, {
-    origin: [config.appUrl, 'http://localhost:8001', 'http://localhost:4173'],
+    origin: [
+      'http://localhost:8001',
+      'http://localhost:4173',
+      'https://taarifa.live',
+      'https://www.taarifa.live',
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
@@ -85,14 +91,8 @@ export async function buildApp(fastify) {
   });
   await fastify.register(fastifySwaggerUi, { routePrefix: '/docs' });
 
-  // ── Auth decorator ─────────────────────────────────────────────────────────
-  fastify.decorate('authenticate', async (req, reply) => {
-    try {
-      await req.jwtVerify();
-    } catch {
-      reply.unauthorized('Invalid or expired token');
-    }
-  });
+  // ── Auth decorator — fetches full DB user, sets req.user ──────────────────
+  fastify.decorate('authenticate', mwAuthenticate);
 
   // ── Routes ─────────────────────────────────────────────────────────────────
   const prefix = '/api/v1';

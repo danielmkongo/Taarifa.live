@@ -87,7 +87,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await api.login(form);
-      setAuth(data.user, data.token);
+      setAuth(data.user, data.token, data.refreshToken);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Invalid credentials');

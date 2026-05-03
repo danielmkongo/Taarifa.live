@@ -1,7 +1,34 @@
 const BASE = '/api/v1';
 
-function getToken() {
-  return localStorage.getItem('token');
+function getToken()        { return localStorage.getItem('token'); }
+function getRefreshToken() { return localStorage.getItem('refreshToken'); }
+
+function clearAuth() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+}
+
+let _refreshing = false;
+
+async function tryRefresh() {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken || _refreshing) return false;
+  _refreshing = true;
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return false;
+    const { token } = await res.json();
+    localStorage.setItem('token', token);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    _refreshing = false;
+  }
 }
 
 async function request(method, path, body, options = {}) {
@@ -17,7 +44,25 @@ async function request(method, path, body, options = {}) {
   });
 
   if (res.status === 401) {
-    localStorage.removeItem('token');
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      // Retry original request with new token
+      const retryHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
+      const retry = await fetch(`${BASE}${path}`, {
+        method,
+        headers: retryHeaders,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (retry.status === 401) {
+        clearAuth();
+        window.location.href = '/login';
+        throw new Error('Unauthorized');
+      }
+      const retryData = retry.status === 204 ? null : await retry.json().catch(() => null);
+      if (!retry.ok) throw new Error(retryData?.message || retryData?.error || `HTTP ${retry.status}`);
+      return retryData;
+    }
+    clearAuth();
     window.location.href = '/login';
     throw new Error('Unauthorized');
   }
