@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { api } from '../services/api.js';
 import { useAuthStore } from '../store/auth.js';
@@ -46,12 +46,40 @@ function SignalBars({ n }) {
   );
 }
 
+function pickerMarkerIcon() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42"><defs><filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.65)"/></filter></defs><path d="M15,40 C9,29 2,21 2,13 A13,13 0 0 1 28,13 C28,21 21,29 15,40Z" fill="#6366f1" stroke="white" stroke-width="2.5" filter="url(#s)"/><circle cx="15" cy="13" r="5" fill="white"/></svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new window.google.maps.Size(30, 42),
+    anchor: new window.google.maps.Point(15, 40),
+  };
+}
+
 function AddDeviceModal({ groups, onClose, onSaved }) {
   const [form, setForm] = useState({ name: '', description: '', groupId: '', lat: '', lon: '', locationName: '' });
   const [error, setError] = useState('');
   const [newKey, setNewKey] = useState('');
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY });
   const [mapSearch, setMapSearch] = useState('');
+  const pickerMarkerRef = useRef(null);
+  const pickerMapRef    = useRef(null);
+
+  // Sync picker marker with selected coords
+  useEffect(() => {
+    if (!pickerMapRef.current || !window.google) return;
+    if (pickerMarkerRef.current) { pickerMarkerRef.current.setMap(null); pickerMarkerRef.current = null; }
+    if (!form.lat || !form.lon) return;
+    const m = new window.google.maps.Marker({
+      position: { lat: parseFloat(form.lat), lng: parseFloat(form.lon) },
+      map: pickerMapRef.current,
+      icon: pickerMarkerIcon(),
+      draggable: true,
+    });
+    m.addListener('dragend', e => setForm(f => ({ ...f, lat: e.latLng.lat().toFixed(6), lon: e.latLng.lng().toFixed(6) })));
+    pickerMarkerRef.current = m;
+  }, [form.lat, form.lon, pickerMapRef.current]);
+
+  useEffect(() => () => { if (pickerMarkerRef.current) pickerMarkerRef.current.setMap(null); }, []);
 
   function handleMapSearch() {
     if (!mapSearch.trim() || !window.google) return;
@@ -127,27 +155,23 @@ function AddDeviceModal({ groups, onClose, onSaved }) {
                 <Btn kind="secondary" size="sm" type="button" onClick={handleMapSearch}>Search</Btn>
               </div>
               {isLoaded && (
-                <div style={{ height: 200, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <div style={{ height: 220, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
                   <GoogleMap
                     mapContainerStyle={{ width: '100%', height: '100%' }}
                     center={form.lat && form.lon
                       ? { lat: parseFloat(form.lat), lng: parseFloat(form.lon) }
                       : { lat: -6.369, lng: 34.889 }}
-                    zoom={form.lat && form.lon ? 12 : 6}
+                    zoom={form.lat && form.lon ? 13 : 6}
                     options={{ mapTypeId: 'hybrid', mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
-                    onClick={e => {
-                      const lat = e.latLng.lat().toFixed(6);
-                      const lng = e.latLng.lng().toFixed(6);
-                      setForm(f => ({ ...f, lat, lon: lng }));
-                    }}>
+                    onLoad={m => { pickerMapRef.current = m; }}
+                    onClick={e => setForm(f => ({ ...f, lat: e.latLng.lat().toFixed(6), lon: e.latLng.lng().toFixed(6) }))}>
                   </GoogleMap>
                 </div>
               )}
-              {form.lat && form.lon && (
-                <div className="text-xs muted" style={{ marginTop: 4 }}>
-                  Selected: {form.lat}, {form.lon}
-                </div>
-              )}
+              {form.lat && form.lon
+                ? <div className="text-xs muted" style={{ marginTop: 4 }}>📍 {form.lat}, {form.lon} — drag pin to adjust</div>
+                : <div className="text-xs subtle" style={{ marginTop: 4 }}>Click the map to drop a pin</div>
+              }
             </div>
           </form>
         </div>
@@ -155,6 +179,61 @@ function AddDeviceModal({ groups, onClose, onSaved }) {
           <Btn kind="secondary" onClick={onClose}>Cancel</Btn>
           <Btn kind="primary" icon={IcoCheck} type="submit" form="add-device-form">Create device</Btn>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AddGroupModal({ onClose, onSaved }) {
+  const [form, setForm]   = useState({ name: '', description: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!form.name.trim()) { setError('Name is required'); return; }
+    setSaving(true);
+    try {
+      await api.createGroup({ name: form.name.trim(), description: form.description.trim() });
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">New group</div>
+          <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
+        </div>
+        <form onSubmit={submit}>
+          <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {error && <div className="error-banner">{error}</div>}
+            <div className="field">
+              <label className="field__label">Group name *</label>
+              <input required className="input" autoFocus
+                value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Northern Sites" />
+            </div>
+            <div className="field">
+              <label className="field__label">Description</label>
+              <input className="input"
+                value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Optional" />
+            </div>
+          </div>
+          <div className="modal__foot">
+            <Btn kind="secondary" type="button" onClick={onClose}>Cancel</Btn>
+            <Btn kind="primary" type="submit" icon={IcoCheck} disabled={saving}>
+              {saving ? 'Creating…' : 'Create group'}
+            </Btn>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -168,6 +247,7 @@ export default function DevicesPage() {
   const [view, setView] = useState('list');
   const [filter, setFilter] = useState('all');
   const [showAdd, setShowAdd] = useState(false);
+  const [showAddGroup, setShowAddGroup] = useState(false);
   const [search, setSearch] = useState('');
   const [pageTab, setPageTab] = useState('devices'); // 'devices' | 'firmware'
 
@@ -240,9 +320,10 @@ export default function DevicesPage() {
             { value: 'group', label: 'By site', icon: IcoGroup },
             { value: 'map',   label: 'Map',     icon: IcoMap },
           ]} />
-          {(role === 'admin' || role === 'org_admin') && (
+          {(role === 'admin' || role === 'org_admin') && (<>
+            <Btn kind="secondary" size="sm" icon={IcoGroup} onClick={() => setShowAddGroup(true)}>New group</Btn>
             <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowAdd(true)}>Add device</Btn>
-          )}
+          </>)}
         </div>
       </div>
 
@@ -306,6 +387,12 @@ export default function DevicesPage() {
           groups={groups}
           onClose={() => setShowAdd(false)}
           onSaved={() => qc.invalidateQueries(['devices'])}
+        />
+      )}
+      {showAddGroup && (
+        <AddGroupModal
+          onClose={() => setShowAddGroup(false)}
+          onSaved={() => qc.invalidateQueries(['device-groups'])}
         />
       )}
     </div>

@@ -31,43 +31,47 @@ const STATUS_COLORS = {
 };
 
 function buildMarkerSvg(status, selected = false) {
-  const c = STATUS_COLORS[status] || '#94a3b8';
-  const size = selected ? 46 : 36;
-  const pinH = Math.round(size * 1.3);
-  const cx = size / 2;
-  const cy = Math.round(size * 0.46);
-  const outerR = Math.round(size * 0.45);
-  const innerR = Math.round(size * 0.26);
-  const dotR   = Math.round(size * 0.13);
+  const c   = STATUS_COLORS[status] || '#94a3b8';
+  const sz  = selected ? 54 : 42;
+  const cx  = sz / 2;
+  const cy  = sz / 2;
+  const R   = sz * 0.42;
 
-  const excl = status === 'alert'
-    ? `<text x="${cx}" y="${cy + 5}" font-size="${Math.round(size * 0.32)}" font-weight="900" font-family="Arial,sans-serif" text-anchor="middle" fill="white">!</text>`
+  // Inner symbol
+  let symbol;
+  if (status === 'alert') {
+    symbol = `<text x="${cx}" y="${cy + sz * 0.1}" font-size="${Math.round(sz * 0.34)}" font-weight="900" font-family="Arial,sans-serif" text-anchor="middle" fill="white">!</text>`;
+  } else if (status === 'online') {
+    const r1 = sz * 0.11, r2 = sz * 0.20, dot = sz * 0.05;
+    symbol = `
+      <circle cx="${cx}" cy="${cy + r2 * 0.35}" r="${dot}" fill="white"/>
+      <path d="M${cx - r1} ${cy + r1 * 0.25} A${r1} ${r1} 0 0 1 ${cx + r1} ${cy + r1 * 0.25}" fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M${cx - r2} ${cy + r2 * 0.1} A${r2} ${r2} 0 0 1 ${cx + r2} ${cy + r2 * 0.1}" fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round"/>`;
+  } else if (status === 'maintenance') {
+    const a = sz * 0.13;
+    symbol = `<path d="M${cx - a} ${cy - a} L${cx + a} ${cy + a} M${cx + a} ${cy - a} L${cx - a} ${cy + a}" stroke="white" stroke-width="2.2" stroke-linecap="round"/>`;
+  } else {
+    symbol = `<circle cx="${cx}" cy="${cy}" r="${sz * 0.12}" fill="white" fill-opacity="0.5"/>`;
+  }
+
+  const glow = selected
+    ? `<circle cx="${cx}" cy="${cy}" r="${R + 9}" fill="${c}" fill-opacity="0.15" stroke="${c}" stroke-opacity="0.45" stroke-width="1.5"/>`
     : '';
 
-  const pulse = (status === 'online' || status === 'alert') && selected
-    ? `<circle cx="${cx}" cy="${cy}" r="${outerR + 6}" fill="none" stroke="${c}" stroke-width="2" opacity="0.4"/>`
-    : '';
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${pinH}" viewBox="0 0 ${size} ${pinH}">
-    <defs>
-      <filter id="ds" x="-60%" y="-60%" width="220%" height="220%">
-        <feDropShadow dx="0" dy="2" stdDeviation="${selected ? 5 : 3}" flood-color="rgba(0,0,0,0.65)"/>
-      </filter>
-    </defs>
-    ${pulse}
-    <path d="M${cx} 2C${cx - outerR} 2 ${cx - outerR - 2} ${cy - outerR + 2} ${cx - outerR - 2} ${cy}c0 ${Math.round(outerR * 1.6)} ${outerR + 2} ${Math.round(outerR * 2.4)} ${outerR + 2} ${Math.round(outerR * 2.4)}S${cx + outerR + 2} ${cy + Math.round(outerR * 1.6)} ${cx + outerR + 2} ${cy}C${cx + outerR + 2} ${cy - outerR + 2} ${cx + outerR} 2 ${cx} 2z"
-      fill="white" filter="url(#ds)"/>
-    <path d="M${cx} 4C${cx - outerR + 1} 4 ${cx - outerR + 1 - 1} ${cy - outerR + 2} ${cx - outerR + 1 - 1} ${cy}c0 ${Math.round(outerR * 1.5)} ${outerR} ${Math.round(outerR * 2.3)} ${outerR} ${Math.round(outerR * 2.3)}S${cx + outerR - 1} ${cy + Math.round(outerR * 1.5)} ${cx + outerR - 1} ${cy}C${cx + outerR - 1} ${cy - outerR + 2} ${cx + outerR - 1} 4 ${cx} 4z"
-      fill="${c}"/>
-    <circle cx="${cx}" cy="${cy}" r="${innerR}" fill="white" fill-opacity="0.93"/>
-    <circle cx="${cx}" cy="${cy}" r="${dotR}" fill="${c}"/>
-    ${excl}
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}">
+    <defs><filter id="sh" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="${selected ? 5 : 3}" flood-color="rgba(0,0,0,0.72)"/>
+    </filter></defs>
+    ${glow}
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="${c}" stroke="white" stroke-width="${selected ? 3.5 : 2.5}" filter="url(#sh)"/>
+    <circle cx="${cx}" cy="${cy}" r="${R * 0.68}" fill="white" fill-opacity="0.12"/>
+    ${symbol}
   </svg>`;
 
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: { width: size, height: pinH },
-    anchor: { x: cx, y: pinH - 2 },
+    scaledSize: { width: sz, height: sz },
+    anchor: { x: cx, y: cy },
   };
 }
 

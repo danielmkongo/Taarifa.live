@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import { api } from '../services/api.js';
 import { format, formatDistanceToNow, isAfter, isBefore } from 'date-fns';
 import { Btn, Badge, StatusDot, Card, Empty } from '../components/ui/index.jsx';
@@ -527,16 +528,33 @@ function ContentModal({ onClose, onSaved, groups = [], devices = [], initial = n
 
 // ─── Screen modal ───────────────────────────────────────────────────────────────
 function ScreenModal({ onClose, onSaved, groups = [] }) {
-  const [form, setForm] = useState({ name: '', location: '', groupId: '' });
+  const [form, setForm] = useState({ name: '', location: '', groupId: '', lat: '', lon: '' });
   const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError]   = useState('');
   const [saving, setSaving] = useState(false);
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY });
+  const pickerMarkerRef = useRef(null);
+  const pickerMapRef    = useRef(null);
+
+  useEffect(() => {
+    if (!pickerMapRef.current || !window.google) return;
+    if (pickerMarkerRef.current) { pickerMarkerRef.current.setMap(null); pickerMarkerRef.current = null; }
+    if (!form.lat || !form.lon) return;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42"><defs><filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.65)"/></filter></defs><path d="M15,40 C9,29 2,21 2,13 A13,13 0 0 1 28,13 C28,21 21,29 15,40Z" fill="#6366f1" stroke="white" stroke-width="2.5" filter="url(#s)"/><circle cx="15" cy="13" r="5" fill="white"/></svg>`;
+    const icon = { url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`, scaledSize: new window.google.maps.Size(30, 42), anchor: new window.google.maps.Point(15, 40) };
+    const m = new window.google.maps.Marker({ position: { lat: parseFloat(form.lat), lng: parseFloat(form.lon) }, map: pickerMapRef.current, icon, draggable: true });
+    m.addListener('dragend', e => setForm(f => ({ ...f, lat: e.latLng.lat().toFixed(6), lon: e.latLng.lng().toFixed(6) })));
+    pickerMarkerRef.current = m;
+  }, [form.lat, form.lon, pickerMapRef.current]);
+
+  useEffect(() => () => { if (pickerMarkerRef.current) pickerMarkerRef.current.setMap(null); }, []);
 
   async function submit(e) {
     e.preventDefault();
     setError(''); setSaving(true);
     try {
-      const data = await api.createEcalDevice(form);
+      const body = { ...form, lat: form.lat ? parseFloat(form.lat) : undefined, lon: form.lon ? parseFloat(form.lon) : undefined };
+      const data = await api.createEcalDevice(body);
       setResult(data);
       onSaved();
     } catch (err) {
@@ -562,7 +580,7 @@ function ScreenModal({ onClose, onSaved, groups = [] }) {
             <div className="text-xs muted" style={{ marginBottom: 4 }}>API Key (shown once — copy now)</div>
             <code style={{ wordBreak: 'break-all', fontSize: 12 }}>{result.apiKey}</code>
           </div>
-          <div className="text-xs muted">Configure these on the display device. Authenticates with <code>x-api-key</code> header via MQTT.</div>
+          <div className="text-xs muted">Configure on the display device. Authenticates via MQTT with <code>x-api-key</code> header.</div>
         </div>
         <div className="modal__foot"><Btn kind="primary" onClick={onClose}>Done</Btn></div>
       </div>
@@ -585,7 +603,7 @@ function ScreenModal({ onClose, onSaved, groups = [] }) {
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
             <div className="field">
-              <label className="field__label">Location</label>
+              <label className="field__label">Location description</label>
               <input className="input" value={form.location}
                 onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="e.g. Main lobby, Level 2" />
             </div>
@@ -596,6 +614,24 @@ function ScreenModal({ onClose, onSaved, groups = [] }) {
                 <option value="">No group</option>
                 {groups.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
               </select>
+            </div>
+            <div className="field">
+              <label className="field__label">Pin location on map <span className="text-xs muted">(optional)</span></label>
+              {isLoaded && (
+                <div style={{ height: 200, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  <GoogleMap
+                    mapContainerStyle={{ width: '100%', height: '100%' }}
+                    center={form.lat && form.lon ? { lat: parseFloat(form.lat), lng: parseFloat(form.lon) } : { lat: -6.369, lng: 34.889 }}
+                    zoom={form.lat && form.lon ? 14 : 6}
+                    options={{ mapTypeId: 'hybrid', mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+                    onLoad={m => { pickerMapRef.current = m; }}
+                    onClick={e => setForm(f => ({ ...f, lat: e.latLng.lat().toFixed(6), lon: e.latLng.lng().toFixed(6) }))} />
+                </div>
+              )}
+              {form.lat && form.lon
+                ? <div className="text-xs muted" style={{ marginTop: 4 }}>{form.lat}, {form.lon} — drag pin to adjust</div>
+                : <div className="text-xs subtle" style={{ marginTop: 4 }}>Click the map to drop a pin</div>
+              }
             </div>
             <div className="text-xs muted">This display communicates via MQTT using an <code>x-api-key</code> header.</div>
           </div>
