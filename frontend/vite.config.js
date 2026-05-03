@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 8001,
+    allowedHosts: ['taarifa.live', 'www.taarifa.live'],
     proxy: {
       '/api': { target: 'http://localhost:8002', changeOrigin: true },
       '/ws':  { target: 'ws://localhost:8002',  ws: true, changeOrigin: true },
