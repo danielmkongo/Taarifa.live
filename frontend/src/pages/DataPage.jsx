@@ -228,27 +228,20 @@ export default function DataPage() {
 
       {/* ── Latest value tiles ────────────────────────────────── */}
       {deviceId && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 16 }}>
           {sensorKeysList.map((sk, qi) => {
             const sensor   = SENSORS.find(s => s.key === sk);
             const readings = sensorQueries[qi]?.data?.readings || [];
             const latest   = readings[readings.length - 1];
             const loading  = sensorQueries[qi]?.isLoading;
             return (
-              <div key={sk} className="card" style={{ padding: '12px 16px', borderTop: `3px solid ${sensor?.color || 'var(--accent)'}` }}>
-                <div className="text-xs muted" style={{ marginBottom: 4 }}>{sensor?.label || sk}</div>
-                {loading ? (
-                  <div className="text-sm muted">…</div>
-                ) : latest ? (
-                  <>
-                    <div style={{ fontSize: 24, fontWeight: 700, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1, color: sensor?.color }}>
-                      {typeof latest.value === 'number' ? latest.value.toFixed(1) : latest.value}
-                    </div>
-                    <div className="text-xs muted" style={{ marginTop: 2 }}>{sensor?.unit || ''}</div>
-                  </>
-                ) : (
-                  <div className="text-sm muted">No data</div>
-                )}
+              <div key={sk} className="card" style={{ padding: '10px 14px' }}>
+                <div className="text-xs muted">{sensor?.label || sk}</div>
+                <div className="text-2xl font-semibold tabnum tracking-tight"
+                  style={{ marginTop: 2, color: sensor?.color }}>
+                  {loading ? '…' : latest ? (typeof latest.value === 'number' ? latest.value.toFixed(1) : latest.value) : '—'}
+                </div>
+                <div className="text-xs subtle">{sensor?.unit || ''}</div>
               </div>
             );
           })}
