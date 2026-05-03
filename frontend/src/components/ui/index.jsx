@@ -87,19 +87,45 @@ export function Sparkline({ data, color = 'var(--accent)', height = 32, fill = f
   );
 }
 
-export function LineChart({ series, height = 260, yLabel, showLegend = true, area = false, bar = false }) {
+export function LineChart({ series, height = 260, yLabel, showLegend = true, area = false, bar = false, normalize = false }) {
   if (!series?.length) return null;
   const len = Math.max(...series.map(s => s.data?.length ?? 0));
   if (len === 0) return null;
+
+  // When normalize=true, scale each series independently to 0-100 so all fit on the same axis.
+  // Real values are stored alongside for tooltip display.
+  const scaledSeries = normalize ? series.map(s => {
+    const vals = s.data.map(d => d.v).filter(v => v != null);
+    if (!vals.length) return s;
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const range = max - min || 1;
+    return { ...s, _min: min, _max: max, data: s.data.map(d => ({ ...d, _orig: d.v, v: d.v != null ? ((d.v - min) / range) * 100 : null })) };
+  }) : series;
+
   const chartData = Array.from({ length: len }, (_, i) => {
     const row = { _i: i, _label: '' };
-    series.forEach(s => {
+    scaledSeries.forEach(s => {
       const pt = s.data?.[i];
-      if (pt) { row[s.name] = pt.v; if (pt.label) row._label = pt.label; }
+      if (pt) {
+        row[s.name] = pt.v;
+        if (normalize && pt._orig != null) row[`_r_${s.name}`] = pt._orig;
+        if (pt.label) row._label = pt.label;
+      }
     });
     return row;
   });
+
   const ttStyle = { background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' };
+
+  const tooltipFormatter = normalize
+    ? (value, name, props) => {
+        const real = props.payload[`_r_${name}`];
+        const unit = series.find(s => s.name === name)?.unit || '';
+        return real != null ? `${real.toFixed(2)}${unit ? ' ' + unit : ''}` : `${value?.toFixed(1)}%`;
+      }
+    : undefined;
+
   return (
     <div>
       <ResponsiveContainer width="100%" height={height}>
@@ -108,11 +134,14 @@ export function LineChart({ series, height = 260, yLabel, showLegend = true, are
           <XAxis dataKey="_label" tick={{ fontSize: 10, fill: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}
             tickLine={false} axisLine={false} />
           <YAxis tick={{ fontSize: 10, fill: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}
-            tickLine={false} axisLine={false} width={yLabel ? 46 : 36}
-            label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', offset: 12, style: { fontSize: 10, fill: 'var(--fg-subtle)' } } : undefined} />
+            tickLine={false} axisLine={false} width={normalize ? 28 : (yLabel ? 46 : 36)}
+            domain={normalize ? [0, 100] : undefined}
+            tickFormatter={normalize ? v => `${v}%` : undefined}
+            label={!normalize && yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', offset: 12, style: { fontSize: 10, fill: 'var(--fg-subtle)' } } : undefined} />
           <Tooltip contentStyle={ttStyle} cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1 }}
-            labelStyle={{ color: 'var(--fg-muted)', fontSize: 11 }} />
-          {series.map(s => bar
+            labelStyle={{ color: 'var(--fg-muted)', fontSize: 11 }}
+            formatter={tooltipFormatter} />
+          {scaledSeries.map(s => bar
             ? <Bar key={s.name} dataKey={s.name} fill={s.color} fillOpacity={0.85} radius={[3,3,0,0]} maxBarSize={20} isAnimationActive={false} />
             : area
               ? <Area key={s.name} type="monotone" dataKey={s.name} stroke={s.color} strokeWidth={2} fill={s.color} fillOpacity={0.1} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} isAnimationActive={false} />

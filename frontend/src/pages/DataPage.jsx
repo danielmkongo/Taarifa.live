@@ -249,7 +249,8 @@ export default function DataPage() {
             <LineChart series={series} height={320}
               yLabel={selected.size === 1 ? SENSORS.find(s => s.key === [...selected][0])?.unit : undefined}
               area={chartType === 'area'} bar={chartType === 'bar'}
-              showLegend={selected.size > 1} />
+              showLegend={selected.size > 1}
+              normalize={selected.size > 1} />
           )}
         </Card>
 
