@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.js';
 import { api } from '../../services/api.js';
@@ -7,7 +7,7 @@ import {
   IcoHome, IcoCpu, IcoData, IcoMap, IcoBell, IcoFileChart,
   IcoMonitor, IcoCalendar, IcoUsers, IcoSettings,
   IcoSearch, IcoSun, IcoMoon, IcoBell2, IcoExt, IcoZap,
-  IcoLayers, IcoChevDown, IcoMenu, IcoX,
+  IcoLayers, IcoChevDown, IcoMenu, IcoX, IcoArrowRight, IcoPin,
 } from '../ui/Icons.jsx';
 import { Btn, Seg } from '../ui/index.jsx';
 
@@ -38,6 +38,9 @@ export default function Layout() {
   const [theme, setTheme]           = useState(() => localStorage.getItem('taarifa-theme') || 'light');
   const [workspace, setWorkspace]   = useState(() => isSignagePath(location.pathname) ? 'signage' : 'monitoring');
   const [sidebarOpen, setSidebar]   = useState(false);
+  const [searchQ, setSearchQ]       = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -59,6 +62,18 @@ export default function Layout() {
     queryFn: () => api.listDevices({ limit: 1 }),
     refetchInterval: 120_000,
   });
+  const { data: allDevicesData } = useQuery({
+    queryKey: ['devices'],
+    queryFn: () => api.listDevices({ limit: 100 }),
+    staleTime: 60_000,
+  });
+  const allDevices = allDevicesData?.devices || [];
+
+  const searchResults = searchQ.length > 1
+    ? allDevices.filter(d =>
+        [d.name, d.serialNumber, d.locationName].some(v => v?.toLowerCase().includes(searchQ.toLowerCase()))
+      ).slice(0, 7)
+    : [];
 
   const alertCount  = alertData?.total ?? 0;
   const deviceCount = deviceData?.total ?? 0;
@@ -129,7 +144,7 @@ export default function Layout() {
           </div>
           <div className="brand__text">
             <div className="brand__name">Taarifa</div>
-            <div className="brand__sub">Environmental</div>
+            <div className="brand__sub">Live Data. Smarter Decisions.</div>
           </div>
         </div>
 
@@ -209,10 +224,51 @@ export default function Layout() {
               </span>
             ))}
           </div>
-          <div className="search">
+          <div className="search" ref={searchRef} style={{ position: 'relative' }}
+            onFocus={() => setSearchOpen(true)}
+            onBlur={e => { if (!searchRef.current?.contains(e.relatedTarget)) setSearchOpen(false); }}>
             <IcoSearch size={13} />
-            <input placeholder="Search devices, alerts, sites…" />
-            <span className="kbd">⌘K</span>
+            <input
+              placeholder="Search devices, sites…"
+              value={searchQ}
+              onChange={e => { setSearchQ(e.target.value); setSearchOpen(true); }}
+              onKeyDown={e => { if (e.key === 'Escape') { setSearchQ(''); setSearchOpen(false); e.target.blur(); } }}
+            />
+            {searchQ && (
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 0 }}
+                onMouseDown={e => { e.preventDefault(); setSearchQ(''); setSearchOpen(false); }}>
+                <IcoX size={12} />
+              </button>
+            )}
+            {searchOpen && searchQ.length > 1 && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                background: 'var(--bg-elev)', border: '1px solid var(--border)',
+                borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                zIndex: 200, overflow: 'hidden',
+              }}>
+                {searchResults.length === 0 ? (
+                  <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--fg-muted)' }}>No devices match "{searchQ}"</div>
+                ) : searchResults.map(d => (
+                  <button key={d._id}
+                    onMouseDown={e => { e.preventDefault(); setSearchQ(''); setSearchOpen(false); navigate(`/devices/${d._id}`); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer',
+                      textAlign: 'left', borderBottom: '1px solid var(--border)',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: d.status === 'online' ? 'var(--ok)' : d.status === 'alert' ? 'var(--danger)' : 'var(--fg-subtle)' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{d.name}</div>
+                      {d.locationName && <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{d.locationName}</div>}
+                    </div>
+                    <IcoArrowRight size={12} style={{ color: 'var(--fg-subtle)', flexShrink: 0 }} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="topbar__actions">
             <Btn kind="ghost" size="sm"
