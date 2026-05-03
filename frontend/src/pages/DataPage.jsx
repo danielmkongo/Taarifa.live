@@ -37,7 +37,7 @@ const LABEL_FMT = { '1h': 'HH:mm:ss', '24h': 'HH:mm', '7d': 'MMM d', '30d': 'MMM
 
 export default function DataPage() {
   const [deviceId, setDeviceId]   = useState('');
-  const [selected, setSelected]   = useState(new Set(['temperature']));
+  const [selected, setSelected]   = useState(new Set(SENSORS.map(s => s.key)));
   const [range, setRange]         = useState('24h');
   const [chartType, setChartType] = useState('area');
   const [customFrom, setCustomFrom] = useState('');
@@ -104,20 +104,6 @@ export default function DataPage() {
     };
   }).filter(Boolean);
 
-  // Per-sensor stats
-  const allStats = sensorKeysList.map((sk, qi) => {
-    const sensor = SENSORS.find(s => s.key === sk);
-    const list   = sensorQueries[qi]?.data?.readings || [];
-    if (!list.length) return null;
-    const vals = list.map(r => r.value);
-    const avg  = vals.reduce((a, b) => a + b, 0) / vals.length;
-    return {
-      key: sk, label: sensor?.label || sk, unit: sensor?.unit || '',
-      color: sensor?.color, avg: avg.toFixed(2),
-      min: Math.min(...vals).toFixed(2), max: Math.max(...vals).toFixed(2), count: vals.length,
-    };
-  }).filter(Boolean);
-
   const mergedRows = useMemo(() => {
     const map = new Map();
     sensorKeysList.forEach((sk, qi) => {
@@ -151,9 +137,9 @@ export default function DataPage() {
         </div>
         <div className="page__actions">
           <Btn kind="secondary" size="sm" icon={IcoDownload} onClick={() => handleExport('csv')}
-            disabled={!deviceId || exporting || allStats.length === 0}>CSV</Btn>
+            disabled={!deviceId || exporting || mergedRows.length === 0}>CSV</Btn>
           <Btn kind="secondary" size="sm" icon={IcoDownload} onClick={() => handleExport('xlsx')}
-            disabled={!deviceId || exporting || allStats.length === 0}>Excel</Btn>
+            disabled={!deviceId || exporting || mergedRows.length === 0}>Excel</Btn>
         </div>
       </div>
 
@@ -239,32 +225,6 @@ export default function DataPage() {
         </div>
       </div>
 
-      {/* ── Stats (one row per selected sensor) ───────────────── */}
-      {allStats.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-          {allStats.map(st => (
-            <div key={st.key} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-              {[
-                { label: `${st.label} avg`, value: st.avg, unit: st.unit },
-                { label: 'Min',             value: st.min, unit: st.unit },
-                { label: 'Max',             value: st.max, unit: st.unit },
-                { label: 'Readings',        value: st.count, unit: '' },
-              ].map(s => (
-                <div key={s.label} className="card"
-                  style={{ padding: '16px 20px', borderLeft: `3px solid ${st.color}` }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                    letterSpacing: '0.07em', color: 'var(--fg-muted)', marginBottom: 8 }}>{s.label}</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                    <span style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-0.03em',
-                      lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
-                    {s.unit && <span style={{ fontSize: 13, color: 'var(--fg-muted)', fontWeight: 500 }}>{s.unit}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ── Chart ──────────────────────────────────────────────── */}
       <Card
