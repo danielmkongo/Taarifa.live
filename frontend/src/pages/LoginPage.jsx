@@ -97,8 +97,7 @@ export default function LoginPage() {
     try {
       const data = await api.login(form);
       setAuth(data.user, data.token, data.refreshToken);
-      const modules = data.user?.modules || ['weather'];
-      navigate(modules.length > 1 ? '/modules' : '/');
+      navigate('/');
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {
