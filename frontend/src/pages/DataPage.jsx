@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { subHours, format } from 'date-fns';
 import { api } from '../services/api.js';
 import { Btn, Seg, Card, LineChart, Empty, Spinner } from '../components/ui/index.jsx';
-import { IcoDownload } from '../components/ui/Icons.jsx';
+import { IcoDownload, IcoSearch, IcoX } from '../components/ui/Icons.jsx';
 
 const SENSORS = [
   { key: 'temperature', label: 'Temperature', unit: '°C',  color: 'var(--c1)' },
@@ -149,12 +149,10 @@ export default function DataPage() {
         {/* Row 1 — Device */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
           <div className="ctrl-label">Device</div>
-          <select className="select" style={{ maxWidth: 360, height: 36, fontSize: 13.5, fontWeight: 500 }}
-            value={deviceId} onChange={e => setDeviceId(e.target.value)}>
-            {loadingDevices
-              ? <option>Loading…</option>
-              : devices.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
-          </select>
+          {loadingDevices
+            ? <div className="text-xs muted" style={{ marginTop: 6 }}>Loading devices…</div>
+            : <DeviceSearch devices={devices} value={deviceId} onChange={setDeviceId} />
+          }
         </div>
 
         {/* Row 2 — Sensors (distinct background) */}
@@ -324,6 +322,92 @@ export default function DataPage() {
           )}
         </Card>
 
+    </div>
+  );
+}
+
+function DeviceSearch({ devices, value, onChange }) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen]   = useState(false);
+  const ref = useRef(null);
+  const current  = devices.find(d => d._id === value);
+  const filtered = query.trim()
+    ? devices.filter(d =>
+        [d.name, d.serialNumber, d.locationName, d.address].some(v =>
+          v?.toLowerCase().includes(query.toLowerCase())
+        )
+      )
+    : devices;
+
+  function pick(id) { onChange(id); setOpen(false); setQuery(''); }
+
+  return (
+    <div ref={ref} style={{ position: 'relative', maxWidth: 360 }}
+      onBlur={e => { if (!ref.current?.contains(e.relatedTarget)) { setOpen(false); setQuery(''); } }}>
+      <div className="search" style={{ height: 36, fontSize: 13.5, gap: 8, cursor: 'text' }}
+        onClick={() => { setOpen(true); ref.current?.querySelector('input')?.focus(); }}>
+        <IcoSearch size={13} style={{ flexShrink: 0 }} />
+        <input
+          style={{ fontWeight: open ? 400 : 600, flex: 1, minWidth: 0, fontSize: 13.5, background: 'transparent', border: 0, outline: 0 }}
+          value={open ? query : (current?.name || '')}
+          placeholder={open ? 'Search by name, location, serial…' : 'Select a device'}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => { setOpen(true); setQuery(''); }}
+        />
+        {open && query && (
+          <button onMouseDown={e => { e.preventDefault(); setQuery(''); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 0, flexShrink: 0 }}>
+            <IcoX size={12} />
+          </button>
+        )}
+        {!open && current && (
+          <span className="text-xs mono muted" style={{ flexShrink: 0 }}>
+            {current.locationName || current.address || ''}
+          </span>
+        )}
+      </div>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+          background: 'var(--bg-elev)', border: '1px solid var(--border)',
+          borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.11)',
+          zIndex: 60, maxHeight: 240, overflowY: 'auto',
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--fg-muted)' }}>
+              No devices match "{query}"
+            </div>
+          ) : filtered.map(d => {
+            const isSelected = d._id === value;
+            const statusColor = d.status === 'online' ? 'var(--ok)' : d.status === 'alert' ? 'var(--danger)' : 'var(--fg-subtle)';
+            return (
+              <button key={d._id} tabIndex={0}
+                onMouseDown={e => { e.preventDefault(); pick(d._id); }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 14px', background: isSelected ? 'var(--accent-soft)' : 'none',
+                  border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-subtle)'; }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'none'; }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: statusColor }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--accent)' : 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {d.name}
+                  </div>
+                  {(d.locationName || d.serialNumber) && (
+                    <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 1 }}>
+                      {d.locationName}{d.locationName && d.serialNumber ? ' · ' : ''}{d.serialNumber}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

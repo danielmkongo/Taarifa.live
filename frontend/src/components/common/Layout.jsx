@@ -175,7 +175,10 @@ export default function Layout() {
 
         <nav className="nav">
           <div className="nav__section">
-            <div className="nav__heading">{workspaceLabel}</div>
+            <div className="nav__heading nav__heading--ws">
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0, opacity: 0.7 }} />
+              {workspaceLabel}
+            </div>
             {nav.map(n => (
               <a key={n.label}
                 className={`nav__item ${isNavActive(n) ? 'active' : ''}`}
