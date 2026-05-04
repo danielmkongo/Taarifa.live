@@ -166,17 +166,6 @@ export default function Layout() {
         </button>
 
         <nav className="nav">
-          {/* Hub link */}
-          <a className="nav__item nav__item--hub"
-            href="/modules"
-            onClick={e => { e.preventDefault(); navigate('/modules'); }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav__icon">
-              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
-            <span>All workspaces</span>
-          </a>
-          <div style={{ height: 1, background: 'var(--border)', margin: '6px 2px 10px' }} />
-
           <div className="nav__section">
             <div className="nav__heading">{workspace === 'monitoring' ? 'Weather' : workspace === 'energy' ? 'Energy' : 'e-Calendar'}</div>
             {nav.map(n => (
@@ -208,6 +197,19 @@ export default function Layout() {
             </div>
           )}
         </nav>
+
+        <div style={{ padding: '0 10px 6px' }}>
+          <div style={{ height: 1, background: 'var(--border)', margin: '0 2px 8px' }} />
+          <a className="nav__item nav__item--hub"
+            href="/modules"
+            onClick={e => { e.preventDefault(); navigate('/modules'); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav__icon">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            <span>Switch workspace</span>
+          </a>
+        </div>
 
         <div className="user">
           <div className="avatar">{initials}</div>

@@ -5,7 +5,7 @@ import { api } from '../services/api.js';
 import { Btn, Badge, StatusDot, Card, Seg, LineChart, Empty, Spinner } from '../components/ui/index.jsx';
 import {
   IcoPlus, IcoX, IcoKey, IcoPower, IcoCpu, IcoCheck, IcoRefresh,
-  IcoCopy, IcoLayers, IcoSettings, IcoGauge, IcoActivity,
+  IcoCopy, IcoLayers, IcoSettings, IcoGauge, IcoActivity, IcoSearch,
 } from '../components/ui/Icons.jsx';
 import { format, subHours, subDays } from 'date-fns';
 
@@ -378,6 +378,7 @@ function DevicesTab({ systems }) {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [newKey, setNewKey] = useState(null);
+  const [search, setSearch] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['energy-devices'],
@@ -402,6 +403,13 @@ function DevicesTab({ systems }) {
 
   const devices = data?.devices || [];
   const sysMap = Object.fromEntries((systems || []).map(s => [s._id?.toString(), s.name]));
+  const filtered = search
+    ? devices.filter(d =>
+        [d.name, d.location, sysMap[d.systemId?.toString()]].some(v =>
+          v?.toLowerCase().includes(search.toLowerCase())
+        )
+      )
+    : devices;
 
   return (
     <div>
@@ -413,10 +421,20 @@ function DevicesTab({ systems }) {
       ) : (
         <Card
           title="Energy devices"
-          sub={`${devices.length} registered`}
+          sub={`${filtered.length} of ${devices.length}`}
           actions={<Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowAdd(true)}>Add device</Btn>}
           padding={false}
         >
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+            <div className="search" style={{ width: 220 }}>
+              <IcoSearch size={13} />
+              <input
+                placeholder="Search devices…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
           <table className="table">
             <thead>
               <tr>
@@ -432,7 +450,7 @@ function DevicesTab({ systems }) {
               </tr>
             </thead>
             <tbody>
-              {devices.map(d => {
+              {filtered.map(d => {
                 const r = d.latestReading;
                 return (
                   <tr key={d._id}>

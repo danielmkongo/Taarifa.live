@@ -3,6 +3,55 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useAuthStore } from '../store/auth.js';
 
+const glassCard = {
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  borderRadius: 12, overflow: 'hidden',
+};
+const metricBlock = (label, value, color) => (
+  <div key={label}>
+    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
+    <div style={{ fontSize: 16, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+  </div>
+);
+
+function LivePreviewCards() {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={glassCard}>
+        <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 13px 8px', borderBottom:'1px solid rgba(255,255,255,0.06)', fontSize:11.5, color:'rgba(255,255,255,0.5)' }}>
+          <span style={{ width:6,height:6,borderRadius:'50%',background:'#22c55e',boxShadow:'0 0 6px #22c55e',flexShrink:0 }} />
+          <span style={{ flex:1 }}>Weather · Dar es Salaam</span>
+          <span style={{ fontSize:9,fontWeight:700,letterSpacing:'0.08em',color:'#22c55e',background:'rgba(34,197,94,0.12)',border:'1px solid rgba(34,197,94,0.25)',padding:'2px 6px',borderRadius:4 }}>LIVE</span>
+        </div>
+        <div style={{ display:'flex', gap:16, padding:'10px 13px 12px' }}>
+          {[['Temp','28.4°C','#fb923c'],['Humidity','72%','#22d3ee'],['Pressure','1013 hPa','#a78bfa']].map(([l,v,c]) => metricBlock(l,v,c))}
+        </div>
+      </div>
+      <div style={glassCard}>
+        <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 13px 8px', borderBottom:'1px solid rgba(255,255,255,0.06)', fontSize:11.5, color:'rgba(255,255,255,0.5)' }}>
+          <span style={{ width:6,height:6,borderRadius:'50%',background:'#f59e0b',boxShadow:'0 0 6px #f59e0b80',flexShrink:0 }} />
+          <span>Energy · Main Panel</span>
+        </div>
+        <div style={{ display:'flex', gap:16, padding:'10px 13px 12px' }}>
+          {[['Load','4.2 kW','#fbbf24'],['Voltage','231 V','#67e8f9'],['PF','0.94','#86efac']].map(([l,v,c]) => metricBlock(l,v,c))}
+        </div>
+      </div>
+      <div style={{ ...glassCard, gridColumn:'1 / -1' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 13px 8px', borderBottom:'1px solid rgba(255,255,255,0.06)', fontSize:11.5, color:'rgba(255,255,255,0.5)' }}>
+          <span style={{ width:6,height:6,borderRadius:'50%',background:'#818cf8',boxShadow:'0 0 6px #818cf880',flexShrink:0 }} />
+          <span style={{ flex:1 }}>e-Calendar · Main Lobby Screen</span>
+          <span style={{ fontSize:9,fontWeight:700,letterSpacing:'0.08em',color:'#818cf8',background:'rgba(129,140,248,0.12)',border:'1px solid rgba(129,140,248,0.25)',padding:'2px 6px',borderRadius:4 }}>BROADCASTING</span>
+        </div>
+        <div style={{ padding:'9px 13px 11px', fontSize:12.5, color:'rgba(255,255,255,0.5)' }}>
+          Now playing: <span style={{ color:'rgba(255,255,255,0.9)', fontWeight:600 }}>"Staff Safety Briefing"</span>
+          <span style={{ marginLeft:10, fontSize:11, color:'rgba(255,255,255,0.3)' }}>Zone: Main · 30s · All screens</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const FEATURES = [
   {
     icon: (
@@ -40,15 +89,6 @@ const FEATURES = [
     title: 'Know your energy costs',
     desc: 'Track power consumption across every circuit and device. Spot waste and act before bills arrive.',
   },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
-      </svg>
-    ),
-    title: 'Broadcast to display screens',
-    desc: 'Push announcements, alerts, and updates to digital screens across your network — instantly.',
-  },
 ];
 
 const STATS = [
@@ -58,30 +98,6 @@ const STATS = [
   { value: '100%',  label: 'Web-based'       },
 ];
 
-function MiniChart() {
-  const pts = [38, 52, 44, 61, 55, 70, 63, 78, 68, 85, 74, 88];
-  const w = 280, h = 80, pad = 4;
-  const xStep = (w - pad * 2) / (pts.length - 1);
-  const min = Math.min(...pts) - 4, max = Math.max(...pts) + 4;
-  const y = v => pad + (1 - (v - min) / (max - min)) * (h - pad * 2);
-  const pathD = pts.map((v, i) => `${i === 0 ? 'M' : 'L'} ${pad + i * xStep} ${y(v)}`).join(' ');
-  const areaD = `${pathD} L ${pad + (pts.length - 1) * xStep} ${h} L ${pad} ${h} Z`;
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: 'visible' }}>
-      <defs>
-        <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(99,102,241,0.35)" />
-          <stop offset="100%" stopColor="rgba(99,102,241,0)" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill="url(#cg)" />
-      <path d={pathD} fill="none" stroke="rgba(129,140,248,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {pts.map((v, i) => i % 3 === 0 && (
-        <circle key={i} cx={pad + i * xStep} cy={y(v)} r="3" fill="#6366f1" />
-      ))}
-    </svg>
-  );
-}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -130,29 +146,8 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Mini chart visual */}
-        <div className="login-chart-preview">
-          <div className="login-chart-preview__bar">
-            <div className="login-chart-preview__dot online" />
-            <span>Dar es Salaam — Station A</span>
-            <span className="login-chart-preview__live">LIVE</span>
-          </div>
-          <div style={{ padding: '12px 16px 8px' }}>
-            <MiniChart />
-          </div>
-          <div style={{ display: 'flex', gap: 16, padding: '0 16px 14px', fontSize: 11 }}>
-            {[
-              { l: 'Temp', v: '28.4°C', c: '#f97316' },
-              { l: 'Humidity', v: '72%', c: '#06b6d4' },
-              { l: 'Pressure', v: '1013 hPa', c: '#8b5cf6' },
-            ].map(s => (
-              <div key={s.l}>
-                <div style={{ color: 'rgba(255,255,255,0.45)', marginBottom: 2 }}>{s.l}</div>
-                <div style={{ fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums' }}>{s.v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Live preview cards */}
+        <LivePreviewCards />
 
         {/* Features */}
         <div className="login-features">
@@ -192,12 +187,12 @@ export default function LoginPage() {
             </div>
             <div className="auth-logo__text">
               <div className="auth-logo__name">Taarifa</div>
-              <div className="auth-logo__sub">Real-time operations visibility</div>
+              <div className="auth-logo__sub">Monitor · Manage · Act</div>
             </div>
           </div>
 
           <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>
+            <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>
               Welcome back
             </div>
             <div style={{ fontSize: 14, color: 'var(--fg-muted)', marginTop: 6 }}>
@@ -235,9 +230,6 @@ export default function LoginPage() {
             <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600 }}>Create one</Link>
           </div>
 
-          <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--fg-subtle)', textAlign: 'center', lineHeight: 1.6 }}>
-            Taarifa gives operations teams real-time visibility across weather, energy, and facilities — from anywhere, on any device.
-          </div>
         </div>
       </div>
 
