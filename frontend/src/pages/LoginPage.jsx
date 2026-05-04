@@ -52,44 +52,6 @@ function LivePreviewCards() {
   );
 }
 
-const FEATURES = [
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/>
-      </svg>
-    ),
-    title: 'Instant alerts when things go wrong',
-    desc: 'Get notified the moment readings cross a threshold — before a problem becomes a crisis.',
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-7"/>
-      </svg>
-    ),
-    title: 'Live data from every location',
-    desc: 'See real-time conditions across all your sites on one screen. No more calling around to check.',
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 3L3 5v16l6-2 6 2 6-2V3l-6 2-6-2z"/><path d="M9 3v16M15 5v16"/>
-      </svg>
-    ),
-    title: 'All your sites, one dashboard',
-    desc: 'Monitor every location, building, and sensor from a single view — no matter how many you have.',
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
-      </svg>
-    ),
-    title: 'Know your energy costs',
-    desc: 'Track power consumption across every circuit and device. Spot waste and act before bills arrive.',
-  },
-];
 
 const STATS = [
   { value: '24/7',  label: 'Live monitoring' },
@@ -130,14 +92,9 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="login-brand">
           <div className="login-brand__mark">
-            <svg width="18" height="15" viewBox="0 0 22 18" fill="none">
-              <path d="M2 16 Q11 2 20 16" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round"/>
-              <path d="M5 16 Q11 7 17 16" stroke="rgba(255,255,255,0.62)" strokeWidth="2.2" strokeLinecap="round"/>
-              <path d="M8 16 Q11 11 14 16" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
-              <circle cx="11" cy="16" r="2" fill="white"/>
-            </svg>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 800, color: 'rgba(255,255,255,0.88)', letterSpacing: '-0.05em', lineHeight: 1, userSelect: 'none' }}>T</span>
           </div>
-          <span className="login-brand__name">Taarifa</span>
+          <span className="login-brand__name">Taarifa <span style={{ fontWeight: 400, opacity: 0.55 }}>Live</span></span>
         </div>
 
         {/* Headline */}
@@ -150,19 +107,6 @@ export default function LoginPage() {
 
         {/* Live preview cards */}
         <LivePreviewCards />
-
-        {/* Features */}
-        <div className="login-features">
-          {FEATURES.map((f, i) => (
-            <div key={i} className="login-feature">
-              <div className="login-feature__icon">{f.icon}</div>
-              <div>
-                <div className="login-feature__title">{f.title}</div>
-                <div className="login-feature__desc">{f.desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
 
         {/* Stats */}
         <div className="login-stats">
@@ -182,15 +126,10 @@ export default function LoginPage() {
 
           <div className="auth-logo" style={{ marginBottom: 28 }}>
             <div className="auth-logo__mark">
-              <svg width="20" height="17" viewBox="0 0 22 18" fill="none">
-                <path d="M2 16 Q11 2 20 16" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round"/>
-                <path d="M5 16 Q11 7 17 16" stroke="rgba(255,255,255,0.62)" strokeWidth="2.2" strokeLinecap="round"/>
-                <path d="M8 16 Q11 11 14 16" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
-                <circle cx="11" cy="16" r="2" fill="white"/>
-              </svg>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 20, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.05em', lineHeight: 1, userSelect: 'none' }}>T</span>
             </div>
             <div className="auth-logo__text">
-              <div className="auth-logo__name">Taarifa</div>
+              <div className="auth-logo__name">Taarifa <span style={{ fontWeight: 400, color: 'var(--fg-muted)' }}>Live</span></div>
               <div className="auth-logo__sub">Monitor · Manage · Act</div>
             </div>
           </div>

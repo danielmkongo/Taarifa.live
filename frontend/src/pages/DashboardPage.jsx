@@ -18,33 +18,29 @@ function genSeries(n, base, noise, drift = 0, seed = 1) {
   return Array.from({ length: n }, (_, i) => { v += (r() - 0.5) * noise + drift / n; return { t: i, v: +v.toFixed(2) }; });
 }
 
-function KpiCard({ label, value, sub, trend, trendKind = 'neutral', spark, sparkColor, accent }) {
+function KpiCard({ label, value, sub, trend, trendKind = 'neutral', spark, sparkColor, dotColor }) {
   return (
-    <div className="card" style={{
-      padding: '20px',
-      background: accent ? 'linear-gradient(135deg, var(--accent), oklch(0.48 0.28 295))' : undefined,
-      color: accent ? 'white' : undefined,
-      overflow: 'hidden', position: 'relative'
-    }}>
-      <div style={{ fontSize: 11.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em',
-        color: accent ? 'rgba(255,255,255,0.75)' : 'var(--fg-muted)', marginBottom: 8 }}>{label}</div>
+    <div className="card" style={{ padding: '18px 20px', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        {dotColor && <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />}
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg-subtle)' }}>{label}</span>
+      </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ fontSize: 42, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1,
-          fontVariantNumeric: 'tabular-nums', color: accent ? 'white' : 'var(--fg)' }}>
+        <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
           {value ?? '—'}
         </div>
         {spark && (
-          <div style={{ flex: 1, maxWidth: 80 }}>
-            <Sparkline data={spark} color={accent ? 'rgba(255,255,255,0.6)' : sparkColor} height={40} fill />
+          <div style={{ flex: 1, maxWidth: 72 }}>
+            <Sparkline data={spark} color={sparkColor} height={36} fill />
           </div>
         )}
       </div>
-      {sub && <div style={{ marginTop: 6, fontSize: 12, color: accent ? 'rgba(255,255,255,0.7)' : 'var(--fg-muted)' }}>{sub}</div>}
+      {sub && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--fg-muted)' }}>{sub}</div>}
       {trend && (
         <div style={{ marginTop: 8, fontSize: 11.5, fontWeight: 500,
-          color: accent ? 'rgba(255,255,255,0.85)' : (trendKind === 'ok' ? 'var(--ok-soft-fg)' : trendKind === 'warn' ? 'var(--warn-soft-fg)' : 'var(--danger-soft-fg)') }}
+          color: trendKind === 'ok' ? 'var(--ok-soft-fg)' : trendKind === 'warn' ? 'var(--warn-soft-fg)' : trendKind === 'danger' ? 'var(--danger-soft-fg)' : 'var(--fg-muted)' }}
           className="row gap-1">
-          {trendKind === 'ok' ? <IcoArrowUp size={11} /> : trendKind === 'warn' ? null : <IcoArrowDown size={11} />}
+          {trendKind === 'ok' ? <IcoArrowUp size={11} /> : trendKind === 'danger' ? <IcoArrowDown size={11} /> : null}
           {trend}
         </div>
       )}
@@ -205,25 +201,26 @@ export default function DashboardPage() {
           trend={total > 0 ? `${alerting > 0 ? `${alerting} alerting` : 'All healthy'}` : null}
           trendKind={alerting > 0 ? 'warn' : 'ok'}
           spark={activityData.length > 0 ? activityData.map((d, i) => ({ t: i, v: d.v })) : null}
-          sparkColor="var(--ok)"
-          accent={true} />
+          sparkColor="var(--ok)" dotColor="var(--ok)" />
         <KpiCard label="Open alerts" value={openAlerts}
           sub={`${critical} critical · ${(alertEvents?.events || []).filter(e => e.severity === 'warning').length} warning`}
           trend={openAlerts === 0 ? 'All clear' : `${openAlerts} need attention`}
           trendKind={openAlerts === 0 ? 'ok' : critical > 0 ? 'danger' : 'warn'}
-          spark={activityData.map((d, i) => ({ t: i, v: d.v }))} sparkColor="var(--danger)" />
+          spark={activityData.map((d, i) => ({ t: i, v: d.v }))} sparkColor="var(--danger)"
+          dotColor={openAlerts > 0 ? 'var(--danger)' : 'var(--ok)'} />
         <KpiCard label="Data points · 24h" value={totalCount}
           sub={fleet?.deviceCount ? `from ${fleet.deviceCount} devices` : 'across all sensors'}
           trend={totalReadings > 0 ? `${fleet?.deviceCount ?? 0} active devices` : 'No data yet'}
           trendKind={totalReadings > 0 ? 'ok' : 'neutral'}
-          spark={activityData.map((d, i) => ({ t: i, v: d.v }))} sparkColor="var(--accent)" />
+          spark={activityData.map((d, i) => ({ t: i, v: d.v }))} sparkColor="var(--accent)"
+          dotColor="var(--accent)" />
         <KpiCard label="Online rate"
           value={total > 0 ? `${Math.round((online / total) * 100)}%` : '—'}
           sub={total > 0 ? `${online} of ${total} devices` : 'No devices yet'}
           trend={total > 0 ? (online === total ? 'All online' : `${total - online} offline`) : null}
           trendKind={online === total && total > 0 ? 'ok' : online / total >= 0.8 ? 'warn' : 'danger'}
           spark={activityData.length > 0 ? activityData.map((d, i) => ({ t: i, v: d.v })) : null}
-          sparkColor="var(--ok)" />
+          sparkColor="var(--ok)" dotColor={online === total && total > 0 ? 'var(--ok)' : 'var(--warn)'} />
       </div>
 
       <div className="grid grid-2-1" style={{ alignItems: 'stretch' }}>

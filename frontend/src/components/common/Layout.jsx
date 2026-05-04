@@ -166,15 +166,10 @@ export default function Layout() {
       <aside className={`app__sidebar${sidebarOpen ? ' app__sidebar--open' : ''}`}>
         <button className="brand" onClick={() => navigate('/modules')} style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
           <div className="brand__mark">
-            <svg width="17" height="14" viewBox="0 0 22 18" fill="none">
-              <path d="M2 16 Q11 2 20 16" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round"/>
-              <path d="M5 16 Q11 7 17 16" stroke="rgba(255,255,255,0.62)" strokeWidth="2.2" strokeLinecap="round"/>
-              <path d="M8 16 Q11 11 14 16" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
-              <circle cx="11" cy="16" r="2" fill="white"/>
-            </svg>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.05em', lineHeight: 1, userSelect: 'none' }}>T</span>
           </div>
           <div className="brand__text">
-            <div className="brand__name">Taarifa</div>
+            <div className="brand__name">Taarifa<span className="brand__live"> Live</span></div>
           </div>
         </button>
 

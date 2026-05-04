@@ -283,19 +283,14 @@ export default function ModuleSelectPage() {
           </button>
           <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
           <div style={{
-            width: 30, height: 30, borderRadius: 8,
-            background: 'linear-gradient(135deg, var(--accent), oklch(0.48 0.28 295))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 8px oklch(0.58 0.26 272 / 0.35)',
+            width: 30, height: 30, borderRadius: 7,
+            background: 'var(--accent-soft)',
+            border: '1px solid color-mix(in oklch, var(--accent) 22%, var(--border))',
+            display: 'grid', placeItems: 'center',
           }}>
-            <svg width="14" height="12" viewBox="0 0 22 18" fill="none">
-              <path d="M2 16 Q11 2 20 16" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round"/>
-              <path d="M5 16 Q11 7 17 16" stroke="rgba(255,255,255,0.62)" strokeWidth="2.2" strokeLinecap="round"/>
-              <path d="M8 16 Q11 11 14 16" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
-              <circle cx="11" cy="16" r="2" fill="white"/>
-            </svg>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.05em', lineHeight: 1, userSelect: 'none' }}>T</span>
           </div>
-          <span style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg)' }}>Taarifa</span>
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--fg)' }}>Taarifa <span style={{ fontWeight: 400, fontSize: 13.5, color: 'var(--fg-muted)' }}>Live</span></span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{user?.fullName}</span>
