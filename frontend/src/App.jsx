@@ -50,9 +50,8 @@ export default function App() {
         <Route path="/login"    element={<PublicOnly><LoginPage /></PublicOnly>} />
         <Route path="/register" element={<PublicOnly><RegisterPage /></PublicOnly>} />
 
-        <Route path="modules" element={<RequireAuth><ModuleSelectPage /></RequireAuth>} />
-
         <Route element={<RequireAuth><Layout /></RequireAuth>}>
+          <Route path="modules" element={<ModuleSelectPage />} />
           <Route index element={<DashboardPage />} />
           <Route path="devices"    element={<DevicesPage />} />
           <Route path="devices/:id" element={<DeviceDetailPage />} />

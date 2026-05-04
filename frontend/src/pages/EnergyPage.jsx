@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api.js';
 import { Btn, Badge, StatusDot, Card, Seg, LineChart, Empty, Spinner } from '../components/ui/index.jsx';
@@ -733,20 +734,12 @@ function DataTab({ devices }) {
   );
 }
 
-// ── Energy side nav ────────────────────────────────────────────────────────────
-
-const ENERGY_NAV = [
-  { key: 'overview', label: 'Overview', Icon: IcoGauge   },
-  { key: 'devices',  label: 'Devices',  Icon: IcoCpu     },
-  { key: 'systems',  label: 'Systems',  Icon: IcoLayers  },
-  { key: 'data',     label: 'Data',     Icon: IcoActivity },
-];
-
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function EnergyPage() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState('overview');
+  const location = useLocation();
+  const tab = new URLSearchParams(location.search).get('tab') || 'overview';
 
   const { data: fleet, isLoading: fleetLoading } = useQuery({
     queryKey: ['energy-fleet'],
@@ -764,25 +757,23 @@ export default function EnergyPage() {
   const { total = 0, online = 0, totalPower = 0 } = fleet?.summary || {};
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-
-      {/* Page header — full width */}
-      <div className="page__head" style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-            background: 'linear-gradient(135deg, var(--energy), oklch(0.58 0.22 40))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <IcoPower size={17} style={{ color: '#fff' }} />
-          </div>
-          <div>
-            <h1 className="page__title" style={{ margin: 0 }}>Energy</h1>
-            <div className="page__sub" style={{ marginTop: 2 }}>
-              {totalPower > 0
-                ? `${fmtPower(totalPower)} total load · ${online}/${total} devices online`
-                : 'Power consumption and load analytics'}
+    <div className="page">
+      <div className="page__head">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+              background: 'linear-gradient(135deg, var(--energy), oklch(0.58 0.22 40))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <IcoPower size={17} style={{ color: '#fff' }} />
             </div>
+            <h1 className="page__title" style={{ margin: 0 }}>Energy</h1>
+          </div>
+          <div className="page__sub">
+            {totalPower > 0
+              ? `${fmtPower(totalPower)} total load · ${online}/${total} devices online`
+              : 'Power consumption and load analytics'}
           </div>
         </div>
         <div className="page__actions">
@@ -792,63 +783,10 @@ export default function EnergyPage() {
         </div>
       </div>
 
-      {/* Two-column body */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-
-        {/* Left nav panel */}
-        <aside style={{
-          width: 192,
-          flexShrink: 0,
-          borderRight: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          padding: '14px 10px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}>
-          <div style={{
-            fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-            letterSpacing: '0.1em', color: 'var(--fg-subtle)',
-            padding: '0 10px 8px',
-          }}>
-            Energy
-          </div>
-          {ENERGY_NAV.map(({ key, label, Icon }) => {
-            const active = tab === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 12px',
-                  borderRadius: 9,
-                  border: 'none', cursor: 'pointer', textAlign: 'left',
-                  fontSize: 13.5, fontWeight: active ? 600 : 500,
-                  background: active ? 'color-mix(in oklch, var(--energy) 10%, transparent)' : 'transparent',
-                  color: active ? 'var(--energy-soft-fg)' : 'var(--fg-muted)',
-                  boxShadow: active ? 'inset 3px 0 0 var(--energy)' : 'none',
-                  transition: 'background 0.1s, color 0.1s, box-shadow 0.1s',
-                }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--bg-subtle)'; e.currentTarget.style.color = 'var(--fg)'; } }}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-muted)'; } }}
-              >
-                <Icon size={16} style={{ opacity: active ? 1 : 0.6, flexShrink: 0 }} />
-                {label}
-              </button>
-            );
-          })}
-        </aside>
-
-        {/* Main content area */}
-        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px' }}>
-          {tab === 'overview' && <OverviewTab fleet={fleet} isLoading={fleetLoading} />}
-          {tab === 'devices'  && <DevicesTab systems={systems} />}
-          {tab === 'systems'  && <SystemsTab systems={systems} fleet={fleet} isLoading={fleetLoading} />}
-          {tab === 'data'     && <DataTab devices={devices} />}
-        </div>
-
-      </div>
+      {tab === 'overview' && <OverviewTab fleet={fleet} isLoading={fleetLoading} />}
+      {tab === 'devices'  && <DevicesTab systems={systems} />}
+      {tab === 'systems'  && <SystemsTab systems={systems} fleet={fleet} isLoading={fleetLoading} />}
+      {tab === 'data'     && <DataTab devices={devices} />}
     </div>
   );
 }

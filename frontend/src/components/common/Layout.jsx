@@ -95,6 +95,8 @@ export default function Layout() {
   ];
 
   const currentTab = ecalTab(location.search);
+  const currentEnergyTab = new URLSearchParams(location.search).get('tab') || 'overview';
+
   const signageNav = [
     { to: '/ecalendar',                  label: 'Dashboard',  Icon: IcoHome,       tab: 'overview' },
     { to: '/ecalendar?tab=content',      label: 'Content',    Icon: IcoLayers,     tab: 'content' },
@@ -103,7 +105,10 @@ export default function Layout() {
   ];
 
   const energyNav = [
-    { to: '/energy', label: 'Dashboard', Icon: IcoHome },
+    { to: '/energy',              label: 'Overview', Icon: IcoHome,     tab: 'overview' },
+    { to: '/energy?tab=devices',  label: 'Devices',  Icon: IcoCpu,      tab: 'devices'  },
+    { to: '/energy?tab=systems',  label: 'Systems',  Icon: IcoLayers,   tab: 'systems'  },
+    { to: '/energy?tab=data',     label: 'Data',     Icon: IcoActivity, tab: 'data'     },
   ];
 
   const adminNav = [
@@ -115,13 +120,14 @@ export default function Layout() {
 
   // Topbar breadcrumb
   let crumbs = PAGE_TITLES[location.pathname] || ['Weather', 'Overview'];
-  if (isSignagePath(location.pathname)) {
+  if (location.pathname === '/modules') {
+    crumbs = ['', 'Workspaces'];
+  } else if (isSignagePath(location.pathname)) {
     const tabLabels = { overview: 'Dashboard', content: 'Content', schedule: 'Schedule', screens: 'Screens' };
     crumbs = ['e-Calendar', tabLabels[currentTab] || 'Dashboard'];
   } else if (isEnergyPath(location.pathname)) {
-    const tabLabels = { devices: 'Devices', systems: 'Systems', data: 'Data' };
-    const t = new URLSearchParams(location.search).get('tab');
-    crumbs = ['Energy', tabLabels[t] || 'Overview'];
+    const tabLabels = { overview: 'Overview', devices: 'Devices', systems: 'Systems', data: 'Data' };
+    crumbs = ['Energy', tabLabels[currentEnergyTab] || 'Overview'];
   }
 
   const initials = user?.fullName?.split(' ').map(s => s[0]).join('').slice(0, 2) || 'U';
@@ -135,11 +141,9 @@ export default function Layout() {
   }
 
   function isNavActive(n) {
-    if (!isSignagePath(location.pathname)) {
-      return location.pathname === n.to;
-    }
-    // signage: match by tab
-    return n.tab === currentTab;
+    if (isSignagePath(location.pathname)) return n.tab === currentTab;
+    if (isEnergyPath(location.pathname))  return n.tab === currentEnergyTab;
+    return location.pathname === n.to;
   }
 
   return (

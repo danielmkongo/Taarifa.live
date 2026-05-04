@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/auth.js';
 import { api } from '../services/api.js';
-import { IcoZap, IcoPower, IcoMonitor, IcoBell, IcoCpu, IcoArrowRight } from '../components/ui/Icons.jsx';
+import { IcoZap, IcoPower, IcoMonitor, IcoArrowRight } from '../components/ui/Icons.jsx';
 
 // ── Workspace definitions ──────────────────────────────────────────────────────
 
@@ -250,80 +250,39 @@ export default function ModuleSelectPage() {
   const available = WORKSPACES.filter(w => userModules.includes(w.key));
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--bg)',
-      display: 'flex', flexDirection: 'column',
-    }}>
-      {/* Top bar */}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', padding: '48px 24px 60px' }}>
+
+      {/* Heading */}
+      <div style={{ textAlign: 'center', marginBottom: 48, maxWidth: 560 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          Welcome back
+        </div>
+        <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--fg)', margin: 0, lineHeight: 1.15 }}>
+          Where do you want to go?
+        </h1>
+        <p style={{ fontSize: 15, color: 'var(--fg-muted)', marginTop: 10, lineHeight: 1.6 }}>
+          Select a workspace to continue.
+        </p>
+      </div>
+
+      {/* Workspace tiles */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '18px 32px',
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-elev)',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 320px))',
+        gap: 16,
+        maxWidth: 1020,
+        width: '100%',
+        justifyContent: 'center',
+        marginBottom: 48,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: 'linear-gradient(135deg, var(--accent), oklch(0.48 0.28 295))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <svg width="16" height="12" viewBox="0 0 22 16" fill="none">
-              <path d="M1 8 L5 8 L7 2 L10 14 L12.5 8 L15 8 L16.5 5 L18 11 L19.5 8 L21 8"
-                stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg)' }}>Taarifa</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
-            {user?.fullName}
-          </div>
-          <div style={{
-            width: 32, height: 32, borderRadius: '50%',
-            background: 'var(--accent-soft)', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'var(--accent)',
-          }}>
-            {user?.fullName?.split(' ').map(s => s[0]).join('').slice(0, 2) || 'U'}
-          </div>
-        </div>
+        {available.map(ws => (
+          <WorkspaceTile key={ws.key} ws={ws} onClick={() => navigate(ws.route)} />
+        ))}
       </div>
 
-      {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px 60px' }}>
+      {/* Alerts */}
+      <RecentAlerts />
 
-        {/* Heading */}
-        <div style={{ textAlign: 'center', marginBottom: 48, maxWidth: 560 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-            Welcome back
-          </div>
-          <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--fg)', margin: 0, lineHeight: 1.15 }}>
-            Where do you want to go?
-          </h1>
-          <p style={{ fontSize: 15, color: 'var(--fg-muted)', marginTop: 10, lineHeight: 1.6 }}>
-            Select a workspace to continue.
-          </p>
-        </div>
-
-        {/* Workspace tiles */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 320px))',
-          gap: 16,
-          maxWidth: 1020,
-          width: '100%',
-          justifyContent: 'center',
-          marginBottom: 48,
-        }}>
-          {available.map(ws => (
-            <WorkspaceTile key={ws.key} ws={ws} onClick={() => navigate(ws.route)} />
-          ))}
-        </div>
-
-        {/* Alerts */}
-        <RecentAlerts />
-
-      </div>
     </div>
   );
 }
