@@ -266,9 +266,11 @@ export default function ModuleSelectPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 8px oklch(0.58 0.26 272 / 0.35)',
           }}>
-            <svg width="15" height="11" viewBox="0 0 22 16" fill="none">
-              <path d="M1 8 L5 8 L7 2 L10 14 L12.5 8 L15 8 L16.5 5 L18 11 L19.5 8 L21 8"
-                stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="14" height="12" viewBox="0 0 22 18" fill="none">
+              <path d="M2 16 Q11 2 20 16" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round"/>
+              <path d="M5 16 Q11 7 17 16" stroke="rgba(255,255,255,0.62)" strokeWidth="2.2" strokeLinecap="round"/>
+              <path d="M8 16 Q11 11 14 16" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
+              <circle cx="11" cy="16" r="2" fill="white"/>
             </svg>
           </div>
           <span style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg)' }}>Taarifa</span>

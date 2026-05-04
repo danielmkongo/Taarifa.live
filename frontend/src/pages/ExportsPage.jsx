@@ -89,10 +89,74 @@ function ExportModal({ devices, onClose }) {
   );
 }
 
+function NewReportModal({ onClose }) {
+  const [form, setForm] = useState({
+    name: '', cadence: 'weekly', day: 'monday', time: '06:00',
+    format: 'pdf', recipients: '',
+  });
+  const [loading, setLoading] = useState(false);
+
+  function handleSave(e) {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => { setLoading(false); onClose(); }, 600);
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">New scheduled report</div>
+          <Btn kind="ghost" size="sm" icon={IcoX} onClick={onClose} />
+        </div>
+        <div className="modal__body">
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Report name</label>
+            <input className="input" placeholder="e.g. Weekly fleet summary"
+              value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+            <div className="field">
+              <label className="field__label">Cadence</label>
+              <select className="select" value={form.cadence} onChange={e => setForm(f => ({ ...f, cadence: e.target.value }))}>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label">Delivery time</label>
+              <input type="time" className="input" value={form.time}
+                onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
+            </div>
+          </div>
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label className="field__label">Format</label>
+            <Seg value={form.format} onChange={v => setForm(f => ({ ...f, format: v }))}
+              options={[{ value: 'pdf', label: 'PDF' }, { value: 'csv', label: 'CSV' }, { value: 'xlsx', label: 'Excel' }]} />
+          </div>
+          <div className="field" style={{ marginBottom: 16 }}>
+            <label className="field__label">Recipients <span style={{ fontWeight: 400, color: 'var(--fg-subtle)' }}>(comma-separated emails)</span></label>
+            <input className="input" placeholder="alice@org.com, bob@org.com"
+              value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))} />
+          </div>
+        </div>
+        <div className="modal__foot">
+          <Btn kind="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn kind="primary" onClick={handleSave} disabled={loading || !form.name.trim()}>
+            {loading ? 'Creating…' : 'Create report'}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ExportsPage() {
   const user = useAuthStore(s => s.user);
   const role = user?.role || 'viewer';
   const [showExport, setShowExport] = useState(false);
+  const [showNewReport, setShowNewReport] = useState(false);
 
   const { data: devicesData } = useQuery({ queryKey: ['devices'], queryFn: () => api.listDevices({ limit: 100 }) });
   const devices = devicesData?.devices || [];
@@ -113,35 +177,38 @@ export default function ExportsPage() {
         </div>
         <div className="page__actions">
           <Btn kind="secondary" size="sm" icon={IcoDownload} onClick={() => setShowExport(true)}>One-off export</Btn>
-          {role !== 'viewer' && <Btn kind="primary" size="sm" icon={IcoPlus}>New report</Btn>}
+          {role !== 'viewer' && <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowNewReport(true)}>New report</Btn>}
         </div>
       </div>
 
       <Card padding={false}>
-        <table className="table">
-          <thead>
-            <tr><th>Name</th><th>Cadence</th><th>Format</th><th>Recipients</th><th>Last run</th><th>Status</th><th></th></tr>
-          </thead>
-          <tbody>
-            {REPORTS.map(r => (
-              <tr key={r.id}>
-                <td>
-                  <span style={{ fontWeight: 500 }}>{r.name}</span>
-                  <div className="text-xs mono muted">{r.id}</div>
-                </td>
-                <td className="muted text-xs">{r.cadence}</td>
-                <td><Badge kind="outline">{r.format}</Badge></td>
-                <td className="muted">{r.recipients}</td>
-                <td className="muted text-xs">{r.lastRun}</td>
-                <td><Badge kind="ok" dot="ok">Healthy</Badge></td>
-                <td><Btn kind="ghost" size="sm" icon={IcoMore} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr><th>Name</th><th>Cadence</th><th>Format</th><th>Recipients</th><th>Last run</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {REPORTS.map(r => (
+                <tr key={r.id}>
+                  <td>
+                    <span style={{ fontWeight: 500 }}>{r.name}</span>
+                    <div className="text-xs mono muted">{r.id}</div>
+                  </td>
+                  <td className="muted text-xs">{r.cadence}</td>
+                  <td><Badge kind="outline">{r.format}</Badge></td>
+                  <td className="muted">{r.recipients}</td>
+                  <td className="muted text-xs">{r.lastRun}</td>
+                  <td><Badge kind="ok" dot="ok">Healthy</Badge></td>
+                  <td><Btn kind="ghost" size="sm" icon={IcoMore} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       {showExport && <ExportModal devices={devices} onClose={() => setShowExport(false)} />}
+      {showNewReport && <NewReportModal onClose={() => setShowNewReport(false)} />}
     </div>
   );
 }

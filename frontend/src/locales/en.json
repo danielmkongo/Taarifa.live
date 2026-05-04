@@ -2,7 +2,7 @@
   "nav": {
     "dashboard": "Dashboard", "devices": "Devices", "data": "Data",
     "map": "Map", "alerts": "Alerts", "reports": "Reports",
-    "ecalendar": "E-Calendar", "users": "Users", "settings": "Settings"
+    "ecalendar": "e-Calendar", "users": "Users", "settings": "Settings"
   },
   "common": {
     "loading": "Loading...", "error": "Error", "save": "Save",

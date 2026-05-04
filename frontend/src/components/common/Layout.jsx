@@ -152,28 +152,29 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside className={`app__sidebar${sidebarOpen ? ' app__sidebar--open' : ''}`}>
-        <button className="brand" onClick={() => navigate('/modules')} style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', padding: 0 }}>
+        <button className="brand" onClick={() => navigate('/modules')} style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
           <div className="brand__mark">
-            <svg width="18" height="14" viewBox="0 0 22 16" fill="none">
-              <path d="M1 8 L5 8 L7 2 L10 14 L12.5 8 L15 8 L16.5 5 L18 11 L19.5 8 L21 8"
-                stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="17" height="14" viewBox="0 0 22 18" fill="none">
+              <path d="M2 16 Q11 2 20 16" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round"/>
+              <path d="M5 16 Q11 7 17 16" stroke="rgba(255,255,255,0.62)" strokeWidth="2.2" strokeLinecap="round"/>
+              <path d="M8 16 Q11 11 14 16" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
+              <circle cx="11" cy="16" r="2" fill="white"/>
             </svg>
           </div>
           <div className="brand__text">
             <div className="brand__name">Taarifa</div>
-            <div className="brand__sub">Real-time operations visibility</div>
           </div>
         </button>
 
         <nav className="nav">
           <div className="nav__section">
-            <div className="nav__heading">{workspace === 'monitoring' ? 'Weather' : workspace === 'energy' ? 'Energy' : 'e-Calendar'}</div>
             {nav.map(n => (
               <a key={n.label}
                 className={`nav__item ${isNavActive(n) ? 'active' : ''}`}
+                style={{ position: 'relative' }}
                 href={n.to}
                 onClick={e => { e.preventDefault(); navigate(n.to); }}>
-                <n.Icon className="nav__icon" size={16} />
+                <n.Icon className="nav__icon" size={15} />
                 <span>{n.label}</span>
                 {n.count != null && n.count > 0 && (
                   <span className={`nav__count ${n.alert ? 'nav__count--alert' : ''}`}>{n.count}</span>
@@ -188,9 +189,10 @@ export default function Layout() {
               {adminNav.map(n => (
                 <a key={n.to}
                   className={`nav__item ${location.pathname === n.to ? 'active' : ''}`}
+                  style={{ position: 'relative' }}
                   href={n.to}
                   onClick={e => { e.preventDefault(); navigate(n.to); }}>
-                  <n.Icon className="nav__icon" size={16} />
+                  <n.Icon className="nav__icon" size={15} />
                   <span>{n.label}</span>
                 </a>
               ))}
@@ -198,17 +200,18 @@ export default function Layout() {
           )}
         </nav>
 
-        <div style={{ padding: '0 10px 6px' }}>
-          <div style={{ height: 1, background: 'var(--border)', margin: '0 2px 8px' }} />
-          <a className="nav__item nav__item--hub"
-            href="/modules"
-            onClick={e => { e.preventDefault(); navigate('/modules'); }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav__icon">
+        {/* Workspace switcher — styled as a distinct chip */}
+        <div style={{ padding: '8px 10px 10px' }}>
+          <button className="nav__ws-btn" onClick={() => navigate('/modules')}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
               <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
             <span>Switch workspace</span>
-          </a>
+            <svg className="nav__ws-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
         </div>
 
         <div className="user">

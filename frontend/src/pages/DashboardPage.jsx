@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const user = useAuthStore(s => s.user);
   const wsRef = useRef(null);
   const role = user?.role || 'viewer';
+  const [liveMetric, setLiveMetric] = useState('temp');
 
   const { data: devices, refetch } = useQuery({
     queryKey: ['map-data'],
@@ -97,15 +98,35 @@ export default function DashboardPage() {
   const hourlyActivity = fleet?.hourlyActivity || [];
   const groupSeries = fleet?.groupSeries || [];
 
-  // Fallback demo series when no real data yet
-  const FALLBACK_SERIES = useMemo(() => [
-    { name: 'Savanna · 4 stations',  color: 'var(--c1)', data: genSeries(24, 30, 1.8, 4, 7).map((p, i) => ({ ...p, label: i % 6 === 0 ? `${i}:00` : '' })) },
-    { name: 'Highland · 3 stations', color: 'var(--c2)', data: genSeries(24, 16, 1.2, 2, 17).map((p, i) => ({ ...p, label: '' })) },
-    { name: 'Forest · 2 stations',   color: 'var(--c3)', data: genSeries(24, 24, 0.9, 1, 19).map((p, i) => ({ ...p, label: '' })) },
-    { name: 'Coastal · 2 stations',  color: 'var(--c5)', data: genSeries(24, 29, 0.7, 0, 23).map((p, i) => ({ ...p, label: '' })) },
-  ], []);
+  const METRIC_META = {
+    temp:  { sub: 'Temperature · 24h', yLabel: '°C' },
+    rain:  { sub: 'Rainfall · 24h',    yLabel: 'mm' },
+    humid: { sub: 'Humidity · 24h',    yLabel: '%'  },
+  };
 
-  const liveSeriesRaw = groupSeries.length > 0 ? groupSeries : FALLBACK_SERIES;
+  // Fallback demo series when no real data yet — metric-specific ranges
+  const FALLBACK_BY_METRIC = useMemo(() => ({
+    temp: [
+      { name: 'Savanna · 4 stations',  color: 'var(--c1)', data: genSeries(24, 30, 1.8, 4, 7).map((p, i)  => ({ ...p, label: i % 6 === 0 ? `${i}:00` : '' })) },
+      { name: 'Highland · 3 stations', color: 'var(--c2)', data: genSeries(24, 16, 1.2, 2, 17).map((p, i) => ({ ...p, label: '' })) },
+      { name: 'Forest · 2 stations',   color: 'var(--c3)', data: genSeries(24, 24, 0.9, 1, 19).map((p, i) => ({ ...p, label: '' })) },
+      { name: 'Coastal · 2 stations',  color: 'var(--c5)', data: genSeries(24, 29, 0.7, 0, 23).map((p, i) => ({ ...p, label: '' })) },
+    ],
+    rain: [
+      { name: 'Savanna · 4 stations',  color: 'var(--c1)', data: genSeries(24, 2, 3.5, 0, 11).map((p, i)  => ({ t: p.t, v: Math.max(0, +p.v.toFixed(1)), label: i % 6 === 0 ? `${i}:00` : '' })) },
+      { name: 'Highland · 3 stations', color: 'var(--c2)', data: genSeries(24, 5, 4.0, 0, 13).map((p, i)  => ({ t: p.t, v: Math.max(0, +p.v.toFixed(1)), label: '' })) },
+      { name: 'Forest · 2 stations',   color: 'var(--c3)', data: genSeries(24, 8, 3.2, 0, 29).map((p, i)  => ({ t: p.t, v: Math.max(0, +p.v.toFixed(1)), label: '' })) },
+      { name: 'Coastal · 2 stations',  color: 'var(--c5)', data: genSeries(24, 3, 2.8, 0, 31).map((p, i)  => ({ t: p.t, v: Math.max(0, +p.v.toFixed(1)), label: '' })) },
+    ],
+    humid: [
+      { name: 'Savanna · 4 stations',  color: 'var(--c1)', data: genSeries(24, 62, 4,   0, 7).map((p, i)  => ({ t: p.t, v: Math.min(100, Math.max(0, +p.v.toFixed(0))), label: i % 6 === 0 ? `${i}:00` : '' })) },
+      { name: 'Highland · 3 stations', color: 'var(--c2)', data: genSeries(24, 78, 3,   0, 17).map((p, i) => ({ t: p.t, v: Math.min(100, Math.max(0, +p.v.toFixed(0))), label: '' })) },
+      { name: 'Forest · 2 stations',   color: 'var(--c3)', data: genSeries(24, 85, 2,   0, 19).map((p, i) => ({ t: p.t, v: Math.min(100, Math.max(0, +p.v.toFixed(0))), label: '' })) },
+      { name: 'Coastal · 2 stations',  color: 'var(--c5)', data: genSeries(24, 72, 3.5, 0, 23).map((p, i) => ({ t: p.t, v: Math.min(100, Math.max(0, +p.v.toFixed(0))), label: '' })) },
+    ],
+  }), []);
+
+  const liveSeriesRaw = groupSeries.length > 0 && liveMetric === 'temp' ? groupSeries : FALLBACK_BY_METRIC[liveMetric];
   // Ensure all series have labels on their first series for x-axis
   const liveSeries = liveSeriesRaw.map((s, si) => ({
     ...s,
@@ -205,18 +226,18 @@ export default function DashboardPage() {
           sparkColor="var(--ok)" />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', alignItems: 'stretch' }}>
+      <div className="grid grid-2-1" style={{ alignItems: 'stretch' }}>
         {/* Live observations */}
-        <Card title="Live observations" sub="Temperature · 24h"
+        <Card title="Live observations" sub={METRIC_META[liveMetric].sub}
           actions={<>
-            <Seg value="temp" onChange={() => {}} options={[
-              { value: 'temp',  label: 'Temperature' },
-              { value: 'rain',  label: 'Rainfall' },
-              { value: 'humid', label: 'Humidity' },
+            <Seg value={liveMetric} onChange={setLiveMetric} options={[
+              { value: 'temp',  label: 'Temp' },
+              { value: 'rain',  label: 'Rain' },
+              { value: 'humid', label: 'Humid' },
             ]} />
             <Btn kind="ghost" size="sm" icon={IcoExternal} onClick={() => navigate('/data')} title="Open Data Explorer" />
           </>}>
-          <LineChart series={liveSeries} yLabel="°C" height={260} area />
+          <LineChart series={liveSeries} yLabel={METRIC_META[liveMetric].yLabel} height={260} area />
         </Card>
 
         {/* Needs attention */}

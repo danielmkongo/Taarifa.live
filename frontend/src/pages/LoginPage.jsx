@@ -130,9 +130,11 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="login-brand">
           <div className="login-brand__mark">
-            <svg width="20" height="15" viewBox="0 0 22 16" fill="none">
-              <path d="M1 8 L5 8 L7 2 L10 14 L12.5 8 L15 8 L16.5 5 L18 11 L19.5 8 L21 8"
-                stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="18" height="15" viewBox="0 0 22 18" fill="none">
+              <path d="M2 16 Q11 2 20 16" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round"/>
+              <path d="M5 16 Q11 7 17 16" stroke="rgba(255,255,255,0.62)" strokeWidth="2.2" strokeLinecap="round"/>
+              <path d="M8 16 Q11 11 14 16" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
+              <circle cx="11" cy="16" r="2" fill="white"/>
             </svg>
           </div>
           <span className="login-brand__name">Taarifa</span>
@@ -180,9 +182,11 @@ export default function LoginPage() {
 
           <div className="auth-logo" style={{ marginBottom: 28 }}>
             <div className="auth-logo__mark">
-              <svg width="22" height="17" viewBox="0 0 22 16" fill="none">
-                <path d="M1 8 L5 8 L7 2 L10 14 L12.5 8 L15 8 L16.5 5 L18 11 L19.5 8 L21 8"
-                  stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="20" height="17" viewBox="0 0 22 18" fill="none">
+                <path d="M2 16 Q11 2 20 16" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round"/>
+                <path d="M5 16 Q11 7 17 16" stroke="rgba(255,255,255,0.62)" strokeWidth="2.2" strokeLinecap="round"/>
+                <path d="M8 16 Q11 11 14 16" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
+                <circle cx="11" cy="16" r="2" fill="white"/>
               </svg>
             </div>
             <div className="auth-logo__text">
