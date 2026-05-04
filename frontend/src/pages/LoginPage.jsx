@@ -97,7 +97,7 @@ export default function LoginPage() {
     try {
       const data = await api.login(form);
       setAuth(data.user, data.token, data.refreshToken);
-      navigate('/');
+      navigate('/modules');
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {
