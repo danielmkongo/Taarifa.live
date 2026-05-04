@@ -54,3 +54,8 @@ export const IcoFlame    = Ico('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5
 export const IcoKey      = Ico('<path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>');
 export const IcoCopy     = Ico('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>');
 export const IcoBell2    = Ico('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>');
+export const IcoPower    = Ico('<path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>');
+export const IcoPlugZap  = Ico('<path d="m13 2-2 2.5h3L12 7"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22h10c0-1.76-.85-3.25-2.03-3.79C14.47 17.98 14 17.55 14 17v-2.34"/><path d="M11.93 11c.06-.53.21-1.04.45-1.5"/><path d="M5 5 3 3"/><path d="m19 5 2-2"/>');
+export const IcoBolt     = Ico('<path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973"/><path d="m13 12-3 5h4l-3 5"/>');
+export const IcoGauge    = Ico('<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>');
+export const IcoActivity = Ico('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>');

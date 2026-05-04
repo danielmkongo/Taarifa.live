@@ -34,6 +34,15 @@ const FEATURES = [
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+      </svg>
+    ),
+    title: 'Energy monitoring',
+    desc: 'Track power consumption, voltage, current, and power factor across your entire load.',
+  },
+  {
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
       </svg>
     ),
@@ -43,7 +52,7 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: '6+',    label: 'Sensor types' },
+  { value: '3',     label: 'Modules' },
   { value: '30d',   label: 'Historical data' },
   { value: 'MQTT',  label: '& HTTP support' },
   { value: '100%',  label: 'Web-based' },
@@ -88,7 +97,8 @@ export default function LoginPage() {
     try {
       const data = await api.login(form);
       setAuth(data.user, data.token, data.refreshToken);
-      navigate('/');
+      const modules = data.user?.modules || ['weather'];
+      navigate(modules.length > 1 ? '/modules' : '/');
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {

@@ -13,6 +13,8 @@ import MapPage from './pages/MapPage.jsx';
 import AlertsPage from './pages/AlertsPage.jsx';
 import ExportsPage from './pages/ExportsPage.jsx';
 import ECalendarPage from './pages/ECalendarPage.jsx';
+import EnergyPage from './pages/EnergyPage.jsx';
+import ModuleSelectPage from './pages/ModuleSelectPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
@@ -48,6 +50,8 @@ export default function App() {
         <Route path="/login"    element={<PublicOnly><LoginPage /></PublicOnly>} />
         <Route path="/register" element={<PublicOnly><RegisterPage /></PublicOnly>} />
 
+        <Route path="modules" element={<RequireAuth><ModuleSelectPage /></RequireAuth>} />
+
         <Route element={<RequireAuth><Layout /></RequireAuth>}>
           <Route index element={<DashboardPage />} />
           <Route path="devices"    element={<DevicesPage />} />
@@ -57,6 +61,7 @@ export default function App() {
           <Route path="alerts"     element={<AlertsPage />} />
           <Route path="exports"    element={<ExportsPage />} />
           <Route path="ecalendar"  element={<ECalendarPage />} />
+          <Route path="energy"     element={<EnergyPage />} />
           <Route path="users"      element={<UsersPage />} />
           <Route path="settings"   element={<SettingsPage />} />
         </Route>

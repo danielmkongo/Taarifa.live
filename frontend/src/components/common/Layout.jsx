@@ -8,6 +8,7 @@ import {
   IcoMonitor, IcoCalendar, IcoUsers, IcoSettings,
   IcoSearch, IcoSun, IcoMoon, IcoBell2, IcoExt, IcoZap,
   IcoLayers, IcoChevDown, IcoMenu, IcoX, IcoArrowRight, IcoPin,
+  IcoPower, IcoActivity, IcoGauge,
 } from '../ui/Icons.jsx';
 import { Btn, Seg } from '../ui/index.jsx';
 
@@ -18,6 +19,7 @@ const PAGE_TITLES = {
   '/map':          ['Monitoring',   'Map'],
   '/alerts':       ['Monitoring',   'Alerts'],
   '/exports':      ['Monitoring',   'Reports'],
+  '/energy':       ['Energy',       'Overview'],
   '/ecalendar':    ['e-Calendar',   'Dashboard'],
   '/users':        ['Organisation', 'Members'],
   '/settings':     ['Organisation', 'Settings'],
@@ -25,6 +27,10 @@ const PAGE_TITLES = {
 
 function isSignagePath(pathname) {
   return pathname.startsWith('/ecalendar');
+}
+
+function isEnergyPath(pathname) {
+  return pathname.startsWith('/energy');
 }
 
 function ecalTab(search) {
@@ -36,7 +42,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [theme, setTheme]           = useState(() => localStorage.getItem('taarifa-theme') || 'light');
-  const [workspace, setWorkspace]   = useState(() => isSignagePath(location.pathname) ? 'signage' : 'monitoring');
+  const [workspace, setWorkspace]   = useState(() => isSignagePath(location.pathname) ? 'signage' : isEnergyPath(location.pathname) ? 'energy' : 'monitoring');
   const [sidebarOpen, setSidebar]   = useState(false);
   const [searchQ, setSearchQ]       = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -49,7 +55,8 @@ export default function Layout() {
 
   useEffect(() => {
     if (isSignagePath(location.pathname)) setWorkspace('signage');
-    setSidebar(false); // close drawer on navigation
+    else if (isEnergyPath(location.pathname)) setWorkspace('energy');
+    setSidebar(false);
   }, [location.pathname]);
 
   const { data: alertData } = useQuery({
@@ -95,18 +102,26 @@ export default function Layout() {
     { to: '/ecalendar?tab=screens',      label: 'Screens',    Icon: IcoMonitor,    tab: 'screens' },
   ];
 
+  const energyNav = [
+    { to: '/energy', label: 'Dashboard', Icon: IcoHome },
+  ];
+
   const adminNav = [
     { to: '/users',    label: 'Members',  Icon: IcoUsers },
     { to: '/settings', label: 'Settings', Icon: IcoSettings },
   ];
 
-  const nav = workspace === 'monitoring' ? monitoringNav : signageNav;
+  const nav = workspace === 'monitoring' ? monitoringNav : workspace === 'energy' ? energyNav : signageNav;
 
   // Topbar breadcrumb
   let crumbs = PAGE_TITLES[location.pathname] || ['Monitoring', 'Overview'];
   if (isSignagePath(location.pathname)) {
     const tabLabels = { overview: 'Dashboard', content: 'Content', schedule: 'Schedule', screens: 'Screens' };
     crumbs = ['e-Calendar', tabLabels[currentTab] || 'Dashboard'];
+  } else if (isEnergyPath(location.pathname)) {
+    const tabLabels = { devices: 'Devices', systems: 'Systems', data: 'Data' };
+    const t = new URLSearchParams(location.search).get('tab');
+    crumbs = ['Energy', tabLabels[t] || 'Overview'];
   }
 
   const initials = user?.fullName?.split(' ').map(s => s[0]).join('').slice(0, 2) || 'U';
@@ -151,12 +166,13 @@ export default function Layout() {
         <div className="ws-toggle">
           <div className="ws-toggle__track">
             {[
-              { key: 'monitoring', label: 'Monitoring', Icon: IcoZap },
-              { key: 'signage',    label: 'e-Calendar', Icon: IcoMonitor },
-            ].map(({ key, label, Icon }) => (
+              { key: 'monitoring', label: 'Monitor',    Icon: IcoZap,     route: '/' },
+              { key: 'energy',     label: 'Energy',     Icon: IcoPower,   route: '/energy' },
+              { key: 'signage',    label: 'e-Cal',      Icon: IcoMonitor, route: '/ecalendar' },
+            ].map(({ key, label, Icon, route }) => (
               <button key={key}
                 className={`ws-toggle__btn ${workspace === key ? 'active' : ''}`}
-                onClick={() => { setWorkspace(key); navigate(key === 'signage' ? '/ecalendar' : '/'); }}>
+                onClick={() => { setWorkspace(key); navigate(route); }}>
                 <Icon size={13} />
                 {label}
               </button>
@@ -166,7 +182,7 @@ export default function Layout() {
 
         <nav className="nav">
           <div className="nav__section">
-            <div className="nav__heading">{workspace === 'monitoring' ? 'Monitoring' : 'e-Calendar'}</div>
+            <div className="nav__heading">{workspace === 'monitoring' ? 'Monitoring' : workspace === 'energy' ? 'Energy' : 'e-Calendar'}</div>
             {nav.map(n => (
               <a key={n.label}
                 className={`nav__item ${isNavActive(n) ? 'active' : ''}`}

@@ -72,7 +72,7 @@ export default async function authRoutes(fastify) {
     return {
       token,
       refreshToken: refreshRaw,
-      user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role, orgId: user.orgId },
+      user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role, orgId: user.orgId, modules: user.modules || ['weather', 'energy', 'ecalendar'] },
     };
   });
 

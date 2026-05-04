@@ -68,18 +68,32 @@ async function ensureIndexes(db) {
     db.collection('ecalDevices').createIndex({ orgId: 1 }),
     db.collection('ecalDevices').createIndex({ apiKeyHash: 1 }, { unique: true }),
     db.collection('ecalCampaigns').createIndex({ groupId: 1, startsAt: 1, endsAt: 1 }),
+
+    db.collection('energySystems').createIndex({ orgId: 1 }),
+    db.collection('energyDevices').createIndex({ orgId: 1 }),
+    db.collection('energyDevices').createIndex({ apiKeyPrefix: 1 }),
+    db.collection('energyDevices').createIndex({ apiKeyHash: 1 }, { unique: true }),
+    db.collection('energyDevices').createIndex({ status: 1 }),
   ]);
 
-  // Time Series collection for sensor readings — create only if it doesn't exist
-  const collections = await db.listCollections({ name: 'sensorReadings' }).toArray();
-  if (collections.length === 0) {
-    await db.createCollection('sensorReadings', {
-      timeseries: {
-        timeField:   'timestamp',
-        metaField:   'meta',
-        granularity: 'minutes',
-      },
+  // Time Series collections — create only if they don't exist
+  const [sensorCols, energyCols] = await Promise.all([
+    db.listCollections({ name: 'sensorReadings' }).toArray(),
+    db.listCollections({ name: 'energyReadings' }).toArray(),
+  ]);
+
+  const tsOps = [];
+  if (sensorCols.length === 0) {
+    tsOps.push(db.createCollection('sensorReadings', {
+      timeseries: { timeField: 'timestamp', metaField: 'meta', granularity: 'minutes' },
       expireAfterSeconds: 365 * 24 * 3600,
-    });
+    }));
   }
+  if (energyCols.length === 0) {
+    tsOps.push(db.createCollection('energyReadings', {
+      timeseries: { timeField: 'timestamp', metaField: 'meta', granularity: 'minutes' },
+      expireAfterSeconds: 365 * 24 * 3600,
+    }));
+  }
+  if (tsOps.length) await Promise.all(tsOps);
 }

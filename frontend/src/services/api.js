@@ -177,4 +177,24 @@ export const api = {
   listEcalCampaigns:  ()       => request('GET',    '/ecal/campaigns'),
   createEcalCampaign: (body)   => request('POST',   '/ecal/campaigns', body),
   deleteEcalCampaign: (id)     => request('DELETE', `/ecal/campaigns/${id}`),
+
+  // Energy — systems
+  listEnergySystems:   ()       => request('GET',    '/energy/systems'),
+  createEnergySystem:  (body)   => request('POST',   '/energy/systems', body),
+  updateEnergySystem:  (id, b)  => request('PATCH',  `/energy/systems/${id}`, b),
+  deleteEnergySystem:  (id)     => request('DELETE', `/energy/systems/${id}`),
+
+  // Energy — devices
+  listEnergyDevices:   (p)      => request('GET',    '/energy/devices?' + new URLSearchParams(p || {})),
+  getEnergyDevice:     (id)     => request('GET',    `/energy/devices/${id}`),
+  createEnergyDevice:  (body)   => request('POST',   '/energy/devices', body),
+  updateEnergyDevice:  (id, b)  => request('PATCH',  `/energy/devices/${id}`, b),
+  deleteEnergyDevice:  (id)     => request('DELETE', `/energy/devices/${id}`),
+  rotateEnergyKey:     (id)     => request('POST',   `/energy/devices/${id}/rotate-key`),
+
+  // Energy — readings & fleet
+  getEnergyFleet:      ()       => request('GET',    '/energy/fleet'),
+  getEnergyReadings:   (p)      => request('GET',    '/energy/readings?' + new URLSearchParams(p)),
+  getEnergyLatest:     (id)     => request('GET',    `/energy/latest/${id}`),
+  getEnergyStats:      (p)      => request('GET',    '/energy/stats?' + new URLSearchParams(p)),
 };

@@ -43,12 +43,13 @@ export default async function userRoutes(fastify) {
   // PATCH /users/:id
   fastify.patch('/:id', { preHandler: adminOnly }, async (req, reply) => {
     const id = new ObjectId(req.params.id);
-    const { fullName, role, isActive, locale } = req.body;
+    const { fullName, role, isActive, locale, modules } = req.body;
     const update = {};
     if (fullName !== undefined) update.fullName = fullName;
     if (role !== undefined) update.role = role;
     if (isActive !== undefined) update.isActive = isActive;
     if (locale !== undefined) update.locale = locale;
+    if (modules !== undefined) update.modules = modules;
     update.updatedAt = new Date();
 
     await col('users').updateOne({ _id: id, orgId: req.user.orgId }, { $set: update });
@@ -67,6 +68,6 @@ export default async function userRoutes(fastify) {
 
   // GET /users/me
   fastify.get('/me', { preHandler }, async (req) => {
-    return { id: req.user._id, email: req.user.email, fullName: req.user.fullName, role: req.user.role, locale: req.user.locale };
+    return { id: req.user._id, email: req.user.email, fullName: req.user.fullName, role: req.user.role, locale: req.user.locale, modules: req.user.modules || ['weather', 'energy', 'ecalendar'] };
   });
 }

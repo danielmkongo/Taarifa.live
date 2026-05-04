@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api.js';
 import { format } from 'date-fns';
 import { Btn, Badge, Card, Empty } from '../components/ui/index.jsx';
-import { IcoPlus, IcoMore, IcoX, IcoCheck, IcoUsers } from '../components/ui/Icons.jsx';
+import { IcoPlus, IcoMore, IcoX, IcoCheck, IcoUsers, IcoLayers } from '../components/ui/Icons.jsx';
 
 const ROLES = ['viewer', 'manager', 'org_admin'];
+const ALL_MODULES = ['weather', 'energy', 'ecalendar'];
+const MODULE_LABELS = { weather: 'Weather', energy: 'Energy', ecalendar: 'e-Calendar' };
 
 function InviteModal({ onClose, onSaved }) {
   const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'viewer' });
@@ -66,6 +68,58 @@ function InviteModal({ onClose, onSaved }) {
   );
 }
 
+function ModulesModal({ user, onClose, onSaved }) {
+  const [modules, setModules] = useState(user.modules || ALL_MODULES);
+  const [loading, setLoading] = useState(false);
+
+  function toggle(key) {
+    setModules(ms => ms.includes(key) ? ms.filter(m => m !== key) : [...ms, key]);
+  }
+
+  async function save() {
+    setLoading(true);
+    try {
+      await api.updateUser(user._id, { modules });
+      onSaved();
+      onClose();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div className="modal__title">Module access — {user.fullName}</div>
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={onClose}>
+            <IcoX size={14} />
+          </button>
+        </div>
+        <div className="modal__body">
+          <div style={{ fontSize: 13, color: 'var(--fg-muted)', marginBottom: 16 }}>
+            Select which modules this user can access.
+          </div>
+          {ALL_MODULES.map(key => (
+            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', marginBottom: 6, border: '1px solid', borderColor: modules.includes(key) ? 'var(--accent)' : 'var(--border)', background: modules.includes(key) ? 'var(--accent-soft)' : 'transparent' }}>
+              <input type="checkbox" checked={modules.includes(key)} onChange={() => toggle(key)} style={{ accentColor: 'var(--accent)' }} />
+              <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--fg)' }}>{MODULE_LABELS[key]}</span>
+            </label>
+          ))}
+        </div>
+        <div className="modal__foot">
+          <Btn kind="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn kind="primary" icon={IcoCheck} onClick={save} disabled={loading || modules.length === 0}>
+            {loading ? 'Saving…' : 'Save'}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function roleKind(role) {
   if (role === 'super_admin' || role === 'org_admin') return 'accent';
   if (role === 'manager') return 'info';
@@ -83,6 +137,7 @@ function initials(name) {
 export default function UsersPage() {
   const qc = useQueryClient();
   const [showInvite, setShowInvite] = useState(false);
+  const [modulesUser, setModulesUser] = useState(null);
 
   const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: api.listUsers });
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: api.me });
@@ -115,6 +170,7 @@ export default function UsersPage() {
             <tr>
               <th>Member</th>
               <th>Role</th>
+              <th>Modules</th>
               <th>Status</th>
               <th>Last active</th>
               <th></th>
@@ -122,10 +178,10 @@ export default function UsersPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>Loading…</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px 14px', color: 'var(--fg-muted)' }}>Loading…</td></tr>
             ) : list.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: 32 }}>
+                <td colSpan={6} style={{ padding: 32 }}>
                   <Empty icon={IcoUsers} title="No members yet" hint="Invite your first team member." action={canManage && <Btn kind="primary" size="sm" icon={IcoPlus} onClick={() => setShowInvite(true)}>Invite</Btn>} />
                 </td>
               </tr>
@@ -147,6 +203,15 @@ export default function UsersPage() {
                   <Badge kind={roleKind(u.role)}>{roleLabel(u.role)}</Badge>
                 </td>
                 <td>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {(u.modules || ALL_MODULES).map(m => (
+                      <span key={m} style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'var(--bg-subtle)', color: 'var(--fg-muted)', border: '1px solid var(--border)' }}>
+                        {MODULE_LABELS[m] || m}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td>
                   <Badge kind={u.isActive ? 'ok' : 'neutral'} dot={u.isActive ? 'ok' : 'off'}>
                     {u.isActive ? 'Active' : 'Inactive'}
                   </Badge>
@@ -155,8 +220,13 @@ export default function UsersPage() {
                   {u.lastLoginAt ? format(new Date(u.lastLoginAt), 'MMM d, HH:mm') : 'Never'}
                 </td>
                 <td>
-                  {canManage && u._id !== me?._id && (
-                    <Btn kind="ghost" size="sm" icon={IcoMore} onClick={() => { if (confirm('Deactivate user?')) deleteMut.mutate(u._id); }} />
+                  {canManage && (
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Btn kind="ghost" size="sm" icon={IcoLayers} title="Edit module access" onClick={() => setModulesUser(u)} />
+                      {u._id !== me?._id && (
+                        <Btn kind="ghost" size="sm" icon={IcoMore} title="Deactivate" onClick={() => { if (confirm('Deactivate user?')) deleteMut.mutate(u._id); }} />
+                      )}
+                    </div>
                   )}
                 </td>
               </tr>
@@ -169,6 +239,13 @@ export default function UsersPage() {
         <InviteModal
           onClose={() => setShowInvite(false)}
           onSaved={() => qc.invalidateQueries(['users'])}
+        />
+      )}
+      {modulesUser && (
+        <ModulesModal
+          user={modulesUser}
+          onClose={() => setModulesUser(null)}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['users'] }); setModulesUser(null); }}
         />
       )}
     </div>
