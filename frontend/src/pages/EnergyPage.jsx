@@ -704,7 +704,26 @@ function DataTab({ devices }) {
             </div>
 
             {chartSeries.length > 0 ? (
-              <LineChart series={chartSeries} height={280} normalize={chartSeries.length > 1} showLegend />
+              chartSeries.length === 1 ? (
+                <LineChart series={chartSeries} height={260}
+                  yLabel={METRICS.find(m => m.label === chartSeries[0].name)?.unit}
+                  showLegend={false} />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {chartSeries.map(s => {
+                    const meta = METRICS.find(m => m.label === s.name);
+                    return (
+                      <div key={s.name}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: s.color, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
+                          {s.name}{meta?.unit ? ` · ${meta.unit}` : ''}
+                        </div>
+                        <LineChart series={[s]} height={150}
+                          yLabel={meta?.unit} showLegend={false} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )
             ) : (
               <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>
                 Select at least one metric above

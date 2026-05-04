@@ -37,7 +37,7 @@ const LABEL_FMT = { '1h': 'HH:mm:ss', '24h': 'HH:mm', '7d': 'MMM d', '30d': 'MMM
 
 export default function DataPage() {
   const [deviceId, setDeviceId]   = useState('');
-  const [selected, setSelected]   = useState(new Set(SENSORS.map(s => s.key)));
+  const [selected, setSelected]   = useState(new Set(['temperature']));
   const [range, setRange]         = useState('24h');
   const [chartType, setChartType] = useState('area');
   const [customFrom, setCustomFrom] = useState('');
@@ -248,33 +248,35 @@ export default function DataPage() {
         </div>
       )}
 
-      {/* ── Chart ──────────────────────────────────────────────── */}
-      <Card
-          title={device
-            ? `${device.name} · ${sensorKeysList.map(k => SENSORS.find(s => s.key === k)?.label || k).join(', ')}`
-            : 'Select a device'}
-          sub={deviceId
-            ? `${range === 'custom' && customFrom
-                ? `${format(new Date(fromIso), 'MMM d')} – ${format(new Date(toIso), 'MMM d')}`
-                : range} · ${series.reduce((n, s) => Math.max(n, s.data.length), 0)} readings`
-            : 'Choose a device above'}
-          style={{ marginBottom: 16 }}>
-          {!deviceId ? (
-            <Empty icon={null} title="No device selected" hint="Pick a device from the selector above." />
-          ) : !customReady ? (
-            <Empty icon={null} title="Set date range" hint="Enter both From and To dates to load data." />
-          ) : loadingChart ? (
-            <div style={{ height: 320, display: 'grid', placeItems: 'center' }}><Spinner /></div>
-          ) : series.length === 0 ? (
-            <Empty icon={null} title="No data" hint="No readings for the selected sensors and range." />
-          ) : (
-            <LineChart series={series} height={320}
-              yLabel={selected.size === 1 ? SENSORS.find(s => s.key === [...selected][0])?.unit : undefined}
-              area={chartType === 'area'} bar={chartType === 'bar'}
-              showLegend={selected.size > 1}
-              normalize={selected.size > 1} />
-          )}
+      {/* ── Charts ─────────────────────────────────────────────── */}
+      {!deviceId ? (
+        <Card style={{ marginBottom: 16 }}>
+          <Empty icon={null} title="No device selected" hint="Pick a device from the selector above." />
         </Card>
+      ) : !customReady ? (
+        <Card style={{ marginBottom: 16 }}>
+          <Empty icon={null} title="Set date range" hint="Enter both From and To dates to load data." />
+        </Card>
+      ) : loadingChart ? (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ height: 260, display: 'grid', placeItems: 'center' }}><Spinner /></div>
+        </Card>
+      ) : series.length === 0 ? (
+        <Card style={{ marginBottom: 16 }}>
+          <Empty icon={null} title="No data" hint="No readings for the selected sensors and range." />
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+          {series.map(s => (
+            <Card key={s.name}
+              title={`${device?.name ?? ''} — ${s.name}`}
+              sub={`${s.unit ? s.unit + ' · ' : ''}${s.data.length} readings · ${range === 'custom' && customFrom ? `${format(new Date(fromIso), 'MMM d')} – ${format(new Date(toIso), 'MMM d')}` : range}`}>
+              <LineChart series={[s]} height={series.length === 1 ? 300 : 180}
+                yLabel={s.unit} area={chartType === 'area'} bar={chartType === 'bar'} showLegend={false} />
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* ── Table ──────────────────────────────────────────────── */}
       <Card

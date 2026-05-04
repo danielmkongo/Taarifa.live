@@ -87,73 +87,78 @@ export function Sparkline({ data, color = 'var(--accent)', height = 32, fill = f
   );
 }
 
-export function LineChart({ series, height = 260, yLabel, showLegend = true, area = false, bar = false, normalize = false }) {
+export function LineChart({ series, height = 260, yLabel, showLegend = true, area = false, bar = false }) {
   if (!series?.length) return null;
   const len = Math.max(...series.map(s => s.data?.length ?? 0));
   if (len === 0) return null;
 
-  // When normalize=true, scale each series independently to 0-100 so all fit on the same axis.
-  // Real values are stored alongside for tooltip display.
-  const scaledSeries = normalize ? series.map(s => {
-    const vals = s.data.map(d => d.v).filter(v => v != null);
-    if (!vals.length) return s;
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    const range = max - min || 1;
-    return { ...s, _min: min, _max: max, data: s.data.map(d => ({ ...d, _orig: d.v, v: d.v != null ? ((d.v - min) / range) * 100 : null })) };
-  }) : series;
-
   const chartData = Array.from({ length: len }, (_, i) => {
     const row = { _i: i, _label: '' };
-    scaledSeries.forEach(s => {
+    series.forEach(s => {
       const pt = s.data?.[i];
-      if (pt) {
-        row[s.name] = pt.v;
-        if (normalize && pt._orig != null) row[`_r_${s.name}`] = pt._orig;
-        if (pt.label) row._label = pt.label;
-      }
+      if (pt) { row[s.name] = pt.v; if (pt.label) row._label = pt.label; }
     });
     return row;
   });
 
-  const ttStyle = { background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' };
+  // Tick formatter: inline unit label (e.g. "28.4°C", "1.2k")
+  const tickFmt = yLabel
+    ? v => { if (v == null) return ''; const n = typeof v === 'number' ? (Math.abs(v) >= 100 ? Math.round(v) : v.toFixed(1)) : v; return `${n}${yLabel}`; }
+    : v => { if (v == null) return ''; if (typeof v !== 'number') return v; return Math.abs(v) >= 1000 ? `${(v/1000).toFixed(1)}k` : v % 1 === 0 ? v : v.toFixed(1); };
 
-  const tooltipFormatter = normalize
-    ? (value, name, props) => {
-        const real = props.payload[`_r_${name}`];
-        const unit = series.find(s => s.name === name)?.unit || '';
-        return real != null ? `${real.toFixed(2)}${unit ? ' ' + unit : ''}` : `${value?.toFixed(1)}%`;
-      }
-    : undefined;
+  const ttStyle = {
+    background: 'var(--bg-elev)', border: '1px solid var(--border)',
+    borderRadius: 8, fontSize: 12, padding: '8px 12px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.10)',
+  };
 
   return (
     <div>
       <ResponsiveContainer width="100%" height={height}>
-        <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: yLabel ? 8 : 0 }}>
-          <CartesianGrid strokeDasharray="2 6" stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="_label" tick={{ fontSize: 10, fill: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}
+        <ComposedChart data={chartData} margin={{ top: 10, right: 14, bottom: 4, left: 4 }}>
+          <CartesianGrid strokeDasharray="3 8" stroke="var(--border)" vertical={false} />
+          <XAxis dataKey="_label"
+            tick={{ fontSize: 10, fill: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}
             tickLine={false} axisLine={false} />
-          <YAxis tick={{ fontSize: 10, fill: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}
-            tickLine={false} axisLine={false} width={normalize ? 28 : (yLabel ? 46 : 36)}
-            domain={normalize ? [0, 100] : undefined}
-            tickFormatter={normalize ? v => `${v}%` : undefined}
-            label={!normalize && yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', offset: 12, style: { fontSize: 10, fill: 'var(--fg-subtle)' } } : undefined} />
-          <Tooltip contentStyle={ttStyle} cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1 }}
-            labelStyle={{ color: 'var(--fg-muted)', fontSize: 11 }}
-            formatter={tooltipFormatter} />
-          {scaledSeries.map(s => bar
+          <YAxis
+            tick={{ fontSize: 10.5, fill: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}
+            tickLine={false} axisLine={false}
+            width={yLabel ? 56 : 40}
+            tickFormatter={tickFmt}
+            domain={[
+              dataMin => { const p = Math.abs(dataMin) * 0.06 + 0.5; return Math.floor(dataMin - p); },
+              dataMax => { const p = Math.abs(dataMax) * 0.08 + 0.5; return Math.ceil(dataMax + p); },
+            ]}
+          />
+          <Tooltip
+            contentStyle={ttStyle}
+            cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1 }}
+            labelStyle={{ color: 'var(--fg-muted)', fontSize: 11, marginBottom: 4 }}
+            formatter={(v, name) => {
+              const s = series.find(x => x.name === name);
+              const unit = s?.unit || yLabel || '';
+              const val = typeof v === 'number' ? (Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(2)) : v;
+              return [`${val}${unit}`, name];
+            }}
+          />
+          {series.map(s => bar
             ? <Bar key={s.name} dataKey={s.name} fill={s.color} fillOpacity={0.85} radius={[3,3,0,0]} maxBarSize={20} isAnimationActive={false} />
             : area
-              ? <Area key={s.name} type="monotone" dataKey={s.name} stroke={s.color} strokeWidth={2} fill={s.color} fillOpacity={0.1} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} isAnimationActive={false} />
-              : <Line key={s.name} type="monotone" dataKey={s.name} stroke={s.color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: s.color, strokeWidth: 0 }} isAnimationActive={false} />
+              ? <Area key={s.name} type="monotoneX" dataKey={s.name} stroke={s.color} strokeWidth={2}
+                  fill={s.color} fillOpacity={0.08}
+                  dot={false} activeDot={{ r: 4, fill: s.color, stroke: 'var(--bg-elev)', strokeWidth: 2 }}
+                  isAnimationActive={false} />
+              : <Line key={s.name} type="monotoneX" dataKey={s.name} stroke={s.color} strokeWidth={2}
+                  dot={false} activeDot={{ r: 4, fill: s.color, stroke: 'var(--bg-elev)', strokeWidth: 2 }}
+                  isAnimationActive={false} />
           )}
         </ComposedChart>
       </ResponsiveContainer>
       {showLegend && series.length > 1 && (
-        <div className="row gap-4" style={{ flexWrap: 'wrap', marginTop: 8, paddingLeft: 44 }}>
+        <div className="row gap-4" style={{ flexWrap: 'wrap', marginTop: 8, paddingLeft: 52 }}>
           {series.map(s => (
             <div key={s.name} className="row gap-2 text-xs">
-              <span style={{ width: 10, height: 2, background: s.color, borderRadius: 1, display: 'inline-block' }} />
+              <span style={{ width: 12, height: 2.5, background: s.color, borderRadius: 2, display: 'inline-block' }} />
               <span className="muted">{s.name}</span>
             </div>
           ))}

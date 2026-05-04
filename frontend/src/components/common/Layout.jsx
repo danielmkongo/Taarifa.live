@@ -42,7 +42,18 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [theme, setTheme]           = useState(() => localStorage.getItem('taarifa-theme') || 'light');
-  const workspace = isSignagePath(location.pathname) ? 'signage' : isEnergyPath(location.pathname) ? 'energy' : 'monitoring';
+  const isAdminPath = location.pathname === '/users' || location.pathname === '/settings';
+  const derivedWorkspace = isSignagePath(location.pathname) ? 'signage' : isEnergyPath(location.pathname) ? 'energy' : 'monitoring';
+  const [lastWorkspace, setLastWorkspace] = useState(
+    () => localStorage.getItem('taarifa-last-workspace') || 'monitoring'
+  );
+  useEffect(() => {
+    if (!isAdminPath) {
+      setLastWorkspace(derivedWorkspace);
+      localStorage.setItem('taarifa-last-workspace', derivedWorkspace);
+    }
+  }, [derivedWorkspace, isAdminPath]);
+  const workspace = isAdminPath ? lastWorkspace : derivedWorkspace;
   const [sidebarOpen, setSidebar]   = useState(false);
   const [searchQ, setSearchQ]       = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -115,6 +126,7 @@ export default function Layout() {
   ];
 
   const nav = workspace === 'monitoring' ? monitoringNav : workspace === 'energy' ? energyNav : signageNav;
+  const workspaceLabel = { monitoring: 'Weather', energy: 'Energy', signage: 'e-Calendar' }[workspace];
 
   // Topbar breadcrumb
   let crumbs = PAGE_TITLES[location.pathname] || ['Weather', 'Overview'];
@@ -168,6 +180,7 @@ export default function Layout() {
 
         <nav className="nav">
           <div className="nav__section">
+            <div className="nav__heading">{workspaceLabel}</div>
             {nav.map(n => (
               <a key={n.label}
                 className={`nav__item ${isNavActive(n) ? 'active' : ''}`}

@@ -4,6 +4,14 @@ import { useAuthStore } from '../store/auth.js';
 import { api } from '../services/api.js';
 import { IcoZap, IcoPower, IcoMonitor, IcoArrowRight } from '../components/ui/Icons.jsx';
 
+function IcoChevLeft({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 18l-6-6 6-6"/>
+    </svg>
+  );
+}
+
 // ── Workspace definitions ──────────────────────────────────────────────────────
 
 const WORKSPACES = [
@@ -255,11 +263,25 @@ export default function ModuleSelectPage() {
       {/* Minimal top bar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 32px',
+        padding: '0 24px', height: 56,
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-elev)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border)',
+              background: 'none', cursor: 'pointer', color: 'var(--fg-muted)',
+              transition: 'background 0.1s, color 0.1s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-subtle)'; e.currentTarget.style.color = 'var(--fg)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--fg-muted)'; }}
+            title="Go back">
+            <IcoChevLeft size={15} />
+          </button>
+          <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
           <div style={{
             width: 30, height: 30, borderRadius: 8,
             background: 'linear-gradient(135deg, var(--accent), oklch(0.48 0.28 295))',

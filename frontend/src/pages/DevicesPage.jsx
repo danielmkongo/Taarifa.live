@@ -335,6 +335,20 @@ export default function DevicesPage() {
       </div>
 
       {pageTab === 'devices' && (<>
+        <div className="row gap-2" style={{ marginBottom: 10 }}>
+          <div className="search" style={{ flex: 1, maxWidth: 340 }}>
+            <IcoSearch size={13} />
+            <input placeholder="Search by name, serial number or location…" value={search}
+              onChange={e => setSearch(e.target.value)} />
+            {search && (
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: 0 }}
+                onClick={() => setSearch('')}>
+                <IcoX size={12} />
+              </button>
+            )}
+          </div>
+          <Btn kind="ghost" size="sm" icon={IcoDownload}>Export CSV</Btn>
+        </div>
         <div className="row gap-2" style={{ marginBottom: 12 }}>
           <Seg value={filter} onChange={setFilter} options={[
             { value: 'all',         label: `All ${counts.total}` },
@@ -343,13 +357,6 @@ export default function DevicesPage() {
             { value: 'offline',     label: 'Offline' },
             { value: 'maintenance', label: 'Maintenance' },
           ]} />
-          <div style={{ flex: 1 }} />
-          <div className="search" style={{ width: 220 }}>
-            <IcoSearch size={13} />
-            <input placeholder="Search devices…" value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <Btn kind="secondary" size="sm" icon={IcoFilter}>Filters</Btn>
-          <Btn kind="ghost" size="sm" icon={IcoDownload}>Export CSV</Btn>
         </div>
 
         {isLoading ? <Spinner /> : view === 'map' ? (
@@ -743,33 +750,36 @@ function DeviceMapView({ devices, onDeviceClick }) {
 
         {/* Side panel */}
         {selected && (
-          <div style={{ width: 260, borderLeft: '1px solid var(--border)', background: 'var(--bg-elev)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div className="row gap-2">
-                <StatusDot status={selected.status} />
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{selected.name}</span>
-              </div>
-              <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setSelected(null)}>
+          <div style={{ width: 280, borderLeft: '1px solid var(--border)', background: 'var(--bg-elev)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <StatusDot status={selected.status} />
+              <span style={{ fontWeight: 600, fontSize: 13, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected.name}</span>
+              <button className="btn btn--ghost btn--icon btn--sm" style={{ flexShrink: 0 }} onClick={() => setSelected(null)}>
                 <IcoX size={13} />
               </button>
             </div>
-            <div style={{ padding: '8px 12px', flex: 1, overflow: 'auto' }}>
-              <div className="text-xs muted">{selected.locationName || selected.address || '—'}</div>
+            <div style={{ padding: '10px 12px', flex: 1, overflow: 'auto' }}>
+              {(selected.locationName || selected.address) && (
+                <div className="text-xs muted" style={{ marginBottom: 4, wordBreak: 'break-word' }}>
+                  {selected.locationName || selected.address}
+                </div>
+              )}
               {selected.location?.coordinates && (
-                <div className="text-xs subtle mono" style={{ marginTop: 2 }}>
+                <div className="text-xs subtle mono" style={{ marginBottom: 10 }}>
                   {selected.location.coordinates[1].toFixed(4)}, {selected.location.coordinates[0].toFixed(4)}
                 </div>
               )}
-              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {[
                   { l: 'Status',    v: selected.status },
                   { l: 'Firmware',  v: selected.firmwareVersion || selected.firmware || '—' },
                   { l: 'Protocol',  v: selected.protocol || 'http' },
-                  { l: 'Last seen', v: selected.lastSeenAt ? new Date(selected.lastSeenAt).toLocaleTimeString() : '—' },
+                  { l: 'Serial',    v: selected.serialNumber || '—' },
+                  { l: 'Last seen', v: selected.lastSeenAt ? new Date(selected.lastSeenAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—' },
                 ].map(row => (
-                  <div key={row.l} className="row gap-2" style={{ justifyContent: 'space-between' }}>
-                    <span className="text-xs muted">{row.l}</span>
-                    <span className="text-xs mono">{row.v}</span>
+                  <div key={row.l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <span className="text-xs muted" style={{ flexShrink: 0 }}>{row.l}</span>
+                    <span className="text-xs mono" style={{ textAlign: 'right', wordBreak: 'break-all' }}>{row.v}</span>
                   </div>
                 ))}
               </div>

@@ -206,10 +206,17 @@ export default function MapPage() {
   const [map, setMap]   = useState(null);
   const [search, setSearch] = useState('');
   const [panelOpen, setPanelOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const markersRef  = useRef([]);
   const clustererRef = useRef(null);
   const hasFitRef   = useRef(false);
   const markerMap   = useRef({});
+
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
 
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY });
 
@@ -276,9 +283,9 @@ export default function MapPage() {
   }, [selectedDevice, devices]);
 
   function selectDevice(device) {
-    setSelectedDevice(prev =>
-      prev?._id?.toString() === device._id?.toString() ? null : device
-    );
+    const alreadySelected = selectedDevice?._id?.toString() === device._id?.toString();
+    setSelectedDevice(alreadySelected ? null : device);
+    if (isMobile && !alreadySelected) setPanelOpen(false);
     if (!device.location?.coordinates || !map) return;
     const [lng, lat] = device.location.coordinates;
     map.panTo({ lat, lng });
@@ -349,8 +356,27 @@ export default function MapPage() {
       {/* ── Body ───────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
+        {/* Mobile backdrop for left panel */}
+        {isMobile && panelOpen && (
+          <div onClick={() => setPanelOpen(false)} style={{
+            position: 'fixed', inset: 0, background: 'oklch(0 0 0 / 0.45)',
+            zIndex: 49, backdropFilter: 'blur(2px)',
+          }} />
+        )}
+
         {/* Left panel */}
-        <aside style={{
+        <aside style={isMobile ? {
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          width: '100%', minWidth: '100%', maxHeight: '55vh',
+          background: 'var(--bg-elev)',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+          borderTop: '1px solid var(--border)',
+          borderRadius: '12px 12px 0 0',
+          zIndex: 50,
+          transform: panelOpen ? 'translateY(0)' : 'translateY(110%)',
+          transition: 'transform 0.26s cubic-bezier(0.4, 0, 0.2, 1)',
+        } : {
           width: panelOpen ? 290 : 0,
           minWidth: panelOpen ? 290 : 0,
           borderRight: panelOpen ? '1px solid var(--border)' : 'none',
@@ -360,6 +386,13 @@ export default function MapPage() {
           transition: 'min-width 0.22s ease, width 0.22s ease',
           flexShrink: 0,
         }}>
+          {/* Drag handle (mobile only) */}
+          {isMobile && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 2px', flexShrink: 0 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border-strong)' }} />
+            </div>
+          )}
+
           {/* Search */}
           <div style={{ padding: '10px 10px 6px', flexShrink: 0 }}>
             <div className="search" style={{ width: '100%' }}>
@@ -438,9 +471,24 @@ export default function MapPage() {
           )}
         </div>
 
+        {/* Mobile backdrop for right panel */}
+        {isMobile && selectedDevice && (
+          <div onClick={() => setSelectedDevice(null)} style={{
+            position: 'fixed', inset: 0, background: 'oklch(0 0 0 / 0.35)', zIndex: 50,
+          }} />
+        )}
+
         {/* Right detail panel */}
         {selectedDevice && (
-          <aside style={{
+          <aside style={isMobile ? {
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            width: '100%', minWidth: '100%', maxHeight: '65vh',
+            borderLeft: 'none', borderTop: '1px solid var(--border)',
+            background: 'var(--bg-elev)',
+            overflowY: 'auto',
+            borderRadius: '12px 12px 0 0',
+            zIndex: 51,
+          } : {
             width: 280,
             minWidth: 280,
             borderLeft: '1px solid var(--border)',
@@ -448,6 +496,11 @@ export default function MapPage() {
             overflowY: 'auto',
             flexShrink: 0,
           }}>
+            {isMobile && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 2px' }}>
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border-strong)' }} />
+              </div>
+            )}
             <DeviceDetailPanel
               device={selectedDevice}
               onClose={() => setSelectedDevice(null)}

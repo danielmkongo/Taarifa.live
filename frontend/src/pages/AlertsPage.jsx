@@ -190,7 +190,7 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      <div className="row gap-3" style={{ marginBottom: 12 }}>
+      <div className="row gap-3" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
         <Seg value={tab} onChange={setTab} options={[
           { value: 'inbox',   label: 'Triage',                        icon: IcoBell },
           { value: 'rules',   label: `Rules · ${rules?.length ?? 0}`, icon: IcoShield },
@@ -209,7 +209,7 @@ export default function AlertsPage() {
       </div>
 
       {tab === 'inbox' && (
-        <div className="grid" style={{ gridTemplateColumns: '1fr 280px', gap: 16 }}>
+        <div className="alerts-triage-grid">
           <div className="grid" style={{ gap: 10 }}>
             {isLoading ? <Spinner /> : allEvents.length === 0 ? (
               <Card><Empty icon={IcoCheck} title="All clear" hint="No alerts in this category." /></Card>
@@ -247,7 +247,7 @@ export default function AlertsPage() {
                           )}
                         </div>
                         {e.state === 'open' && role !== 'viewer' && (
-                          <div className="row gap-2">
+                          <div className="row gap-2 alert-event-actions">
                             <Btn kind="secondary" size="sm" onClick={() => ackMut.mutate(e._id)}>Acknowledge</Btn>
                             <Btn kind="primary" size="sm" onClick={() => resMut.mutate(e._id)}>Resolve</Btn>
                           </div>
@@ -264,7 +264,7 @@ export default function AlertsPage() {
             })}
           </div>
 
-          <div className="grid" style={{ gap: 12, alignContent: 'flex-start' }}>
+          <div className="grid alerts-stats-col" style={{ gap: 12, alignContent: 'flex-start' }}>
             <Card title="Volume · 7 days">
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 90 }}>
                 {[12, 8, 14, 22, 9, 6, openCount].map((v, i) => (
