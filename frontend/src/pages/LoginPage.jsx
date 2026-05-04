@@ -7,20 +7,20 @@ const FEATURES = [
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-7"/>
+        <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/>
       </svg>
     ),
-    title: 'Real-time sensor data',
-    desc: 'Temperature, humidity, pressure, rainfall and more — live from every device.',
+    title: 'Instant alerts when things go wrong',
+    desc: 'Get notified the moment readings cross a threshold — before a problem becomes a crisis.',
   },
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/>
+        <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-7"/>
       </svg>
     ),
-    title: 'Instant alerts',
-    desc: 'Configurable thresholds notify your team the moment something goes wrong.',
+    title: 'Live data from every location',
+    desc: 'See real-time conditions across all your sites on one screen. No more calling around to check.',
   },
   {
     icon: (
@@ -28,8 +28,8 @@ const FEATURES = [
         <path d="M9 3L3 5v16l6-2 6 2 6-2V3l-6 2-6-2z"/><path d="M9 3v16M15 5v16"/>
       </svg>
     ),
-    title: 'Multi-site fleet management',
-    desc: 'Group, filter, and manage hundreds of devices across multiple locations.',
+    title: 'All your sites, one dashboard',
+    desc: 'Monitor every location, building, and sensor from a single view — no matter how many you have.',
   },
   {
     icon: (
@@ -37,25 +37,25 @@ const FEATURES = [
         <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
       </svg>
     ),
-    title: 'Energy monitoring',
-    desc: 'Track power consumption, voltage, current, and power factor across your entire load.',
+    title: 'Know your energy costs',
+    desc: 'Track power consumption across every circuit and device. Spot waste and act before bills arrive.',
   },
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
       </svg>
     ),
-    title: 'OTA updates & data export',
-    desc: 'Push firmware over the air and export historical data to CSV or Excel.',
+    title: 'Broadcast to display screens',
+    desc: 'Push announcements, alerts, and updates to digital screens across your network — instantly.',
   },
 ];
 
 const STATS = [
-  { value: '3',     label: 'Modules' },
-  { value: '30d',   label: 'Historical data' },
-  { value: 'MQTT',  label: '& HTTP support' },
-  { value: '100%',  label: 'Web-based' },
+  { value: '24/7',  label: 'Live monitoring' },
+  { value: '<1s',   label: 'Alert delivery'  },
+  { value: '3',     label: 'Modules'         },
+  { value: '100%',  label: 'Web-based'       },
 ];
 
 function MiniChart() {
@@ -124,10 +124,9 @@ export default function LoginPage() {
 
         {/* Headline */}
         <div className="login-headline">
-          <h1>Live Data.<br />Smarter Decisions.</h1>
+          <h1>See everything.<br />Act instantly.</h1>
           <p>
-            Real-time IoT monitoring for operations teams that can't afford to be offline.
-            Know what's happening across every site, every sensor, every second.
+            One platform for environmental monitoring, energy management, and digital signage — giving your team the visibility to act before problems escalate.
           </p>
         </div>
 
@@ -193,7 +192,7 @@ export default function LoginPage() {
             </div>
             <div className="auth-logo__text">
               <div className="auth-logo__name">Taarifa</div>
-              <div className="auth-logo__sub">Live Data. Smarter Decisions.</div>
+              <div className="auth-logo__sub">Real-time operations visibility</div>
             </div>
           </div>
 
@@ -237,7 +236,7 @@ export default function LoginPage() {
           </div>
 
           <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--fg-subtle)', textAlign: 'center', lineHeight: 1.6 }}>
-            Taarifa is a real-time IoT monitoring platform built for environmental and industrial operations.
+            Taarifa gives operations teams real-time visibility across weather, energy, and facilities — from anywhere, on any device.
           </div>
         </div>
       </div>

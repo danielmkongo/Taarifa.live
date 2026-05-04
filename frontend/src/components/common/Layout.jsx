@@ -42,7 +42,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [theme, setTheme]           = useState(() => localStorage.getItem('taarifa-theme') || 'light');
-  const [workspace, setWorkspace]   = useState(() => isSignagePath(location.pathname) ? 'signage' : isEnergyPath(location.pathname) ? 'energy' : 'monitoring');
+  const workspace = isSignagePath(location.pathname) ? 'signage' : isEnergyPath(location.pathname) ? 'energy' : 'monitoring';
   const [sidebarOpen, setSidebar]   = useState(false);
   const [searchQ, setSearchQ]       = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -54,8 +54,6 @@ export default function Layout() {
   }, [theme]);
 
   useEffect(() => {
-    if (isSignagePath(location.pathname)) setWorkspace('signage');
-    else if (isEnergyPath(location.pathname)) setWorkspace('energy');
     setSidebar(false);
   }, [location.pathname]);
 
@@ -154,7 +152,7 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside className={`app__sidebar${sidebarOpen ? ' app__sidebar--open' : ''}`}>
-        <div className="brand">
+        <button className="brand" onClick={() => navigate('/modules')} style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', padding: 0 }}>
           <div className="brand__mark">
             <svg width="18" height="14" viewBox="0 0 22 16" fill="none">
               <path d="M1 8 L5 8 L7 2 L10 14 L12.5 8 L15 8 L16.5 5 L18 11 L19.5 8 L21 8"
@@ -163,26 +161,9 @@ export default function Layout() {
           </div>
           <div className="brand__text">
             <div className="brand__name">Taarifa</div>
-            <div className="brand__sub">Live Data. Smarter Decisions.</div>
+            <div className="brand__sub">Real-time operations visibility</div>
           </div>
-        </div>
-
-        <div className="ws-toggle">
-          <div className="ws-toggle__track">
-            {[
-              { key: 'monitoring', label: 'Weather',    Icon: IcoZap,     route: '/' },
-              { key: 'energy',     label: 'Energy',     Icon: IcoPower,   route: '/energy' },
-              { key: 'signage',    label: 'e-Cal',      Icon: IcoMonitor, route: '/ecalendar' },
-            ].map(({ key, label, Icon, route }) => (
-              <button key={key}
-                className={`ws-toggle__btn ${workspace === key ? 'active' : ''}`}
-                onClick={() => { setWorkspace(key); navigate(route); }}>
-                <Icon size={13} />
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+        </button>
 
         <nav className="nav">
           <div className="nav__section">

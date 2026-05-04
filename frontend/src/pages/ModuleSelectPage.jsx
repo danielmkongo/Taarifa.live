@@ -250,39 +250,72 @@ export default function ModuleSelectPage() {
   const available = WORKSPACES.filter(w => userModules.includes(w.key));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', padding: '48px 24px 60px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* Heading */}
-      <div style={{ textAlign: 'center', marginBottom: 48, maxWidth: 560 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-          Welcome back
-        </div>
-        <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--fg)', margin: 0, lineHeight: 1.15 }}>
-          Where do you want to go?
-        </h1>
-        <p style={{ fontSize: 15, color: 'var(--fg-muted)', marginTop: 10, lineHeight: 1.6 }}>
-          Select a workspace to continue.
-        </p>
-      </div>
-
-      {/* Workspace tiles */}
+      {/* Minimal top bar */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 320px))',
-        gap: 16,
-        maxWidth: 1020,
-        width: '100%',
-        justifyContent: 'center',
-        marginBottom: 48,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '16px 32px',
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--bg-elev)',
       }}>
-        {available.map(ws => (
-          <WorkspaceTile key={ws.key} ws={ws} onClick={() => navigate(ws.route)} />
-        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: 8,
+            background: 'linear-gradient(135deg, var(--accent), oklch(0.48 0.28 295))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px oklch(0.58 0.26 272 / 0.35)',
+          }}>
+            <svg width="15" height="11" viewBox="0 0 22 16" fill="none">
+              <path d="M1 8 L5 8 L7 2 L10 14 L12.5 8 L15 8 L16.5 5 L18 11 L19.5 8 L21 8"
+                stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg)' }}>Taarifa</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{user?.fullName}</span>
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%',
+            background: 'var(--accent-soft)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: 11.5, fontWeight: 700, color: 'var(--accent)',
+          }}>
+            {user?.fullName?.split(' ').map(s => s[0]).join('').slice(0, 2) || 'U'}
+          </div>
+        </div>
       </div>
 
-      {/* Alerts */}
-      <RecentAlerts />
+      {/* Centered content */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px 60px' }}>
 
+        <div style={{ textAlign: 'center', marginBottom: 48, maxWidth: 520 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-subtle)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Welcome back{user?.fullName ? `, ${user.fullName.split(' ')[0]}` : ''}
+          </div>
+          <h1 style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.035em', color: 'var(--fg)', margin: 0, lineHeight: 1.15 }}>
+            Choose your workspace
+          </h1>
+          <p style={{ fontSize: 14.5, color: 'var(--fg-muted)', marginTop: 10, lineHeight: 1.65, margin: '10px 0 0' }}>
+            Select a module to continue. You can switch at any time.
+          </p>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 300px))',
+          gap: 16,
+          maxWidth: 980,
+          width: '100%',
+          justifyContent: 'center',
+          marginBottom: 48,
+        }}>
+          {available.map(ws => (
+            <WorkspaceTile key={ws.key} ws={ws} onClick={() => navigate(ws.route)} />
+          ))}
+        </div>
+
+        <RecentAlerts />
+      </div>
     </div>
   );
 }
