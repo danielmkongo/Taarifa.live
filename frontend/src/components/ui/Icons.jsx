@@ -59,3 +59,7 @@ export const IcoPlugZap  = Ico('<path d="m13 2-2 2.5h3L12 7"/><path d="M10 14.66
 export const IcoBolt     = Ico('<path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973"/><path d="m13 12-3 5h4l-3 5"/>');
 export const IcoGauge    = Ico('<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>');
 export const IcoActivity = Ico('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>');
+export const IcoGlobe    = Ico('<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>');
+export const IcoBroadcast= Ico('<path d="M22 8.5c0 7.5-10 13.5-10 13.5S2 16 2 8.5a10 10 0 0 1 20 0z"/><circle cx="12" cy="8.5" r="3"/>');
+export const IcoBuilding = Ico('<rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M8 6h8M8 10h8M8 14h8"/>');
+export const IcoSend     = Ico('<path d="M22 2 11 13M22 2 15 22l-4-9-9-4 20-7z"/>');

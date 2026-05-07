@@ -17,6 +17,7 @@ import EnergyPage from './pages/EnergyPage.jsx';
 import ModuleSelectPage from './pages/ModuleSelectPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
+import SuperAdminPage from './pages/SuperAdminPage.jsx';
 
 function RequireAuth({ children }) {
   const token = useAuthStore((s) => s.token);
@@ -63,7 +64,8 @@ export default function App() {
           <Route path="ecalendar"  element={<ECalendarPage />} />
           <Route path="energy"     element={<EnergyPage />} />
           <Route path="users"      element={<UsersPage />} />
-          <Route path="settings"   element={<SettingsPage />} />
+          <Route path="settings"     element={<SettingsPage />} />
+          <Route path="super-admin" element={<SuperAdminPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -8,7 +8,7 @@ import {
   IcoMonitor, IcoCalendar, IcoUsers, IcoSettings,
   IcoSearch, IcoSun, IcoMoon, IcoBell2, IcoExt, IcoZap,
   IcoLayers, IcoChevDown, IcoMenu, IcoX, IcoArrowRight, IcoPin,
-  IcoPower, IcoActivity, IcoGauge,
+  IcoPower, IcoActivity, IcoGauge, IcoShield,
 } from '../ui/Icons.jsx';
 import { Btn, Seg } from '../ui/index.jsx';
 
@@ -23,6 +23,7 @@ const PAGE_TITLES = {
   '/ecalendar':    ['e-Calendar',   'Dashboard'],
   '/users':        ['Organisation', 'Members'],
   '/settings':     ['Organisation', 'Settings'],
+  '/super-admin':  ['Platform',     'Super Admin'],
 };
 
 function isSignagePath(pathname) {
@@ -42,7 +43,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [theme, setTheme]           = useState(() => localStorage.getItem('taarifa-theme') || 'light');
-  const isAdminPath = location.pathname === '/users' || location.pathname === '/settings';
+  const isAdminPath = location.pathname === '/users' || location.pathname === '/settings' || location.pathname === '/super-admin';
   const derivedWorkspace = isSignagePath(location.pathname) ? 'signage' : isEnergyPath(location.pathname) ? 'energy' : 'monitoring';
   const [lastWorkspace, setLastWorkspace] = useState(
     () => localStorage.getItem('taarifa-last-workspace') || 'monitoring'
@@ -207,6 +208,18 @@ export default function Layout() {
                   <span>{n.label}</span>
                 </a>
               ))}
+            </div>
+          )}
+
+          {role === 'super_admin' && (
+            <div className="nav__section">
+              <div className="nav__heading">Platform</div>
+              <a className={`nav__item ${location.pathname === '/super-admin' ? 'active' : ''}`}
+                href="/super-admin"
+                onClick={e => { e.preventDefault(); navigate('/super-admin'); }}>
+                <IcoShield className="nav__icon" size={15} />
+                <span>Super Admin</span>
+              </a>
             </div>
           )}
         </nav>

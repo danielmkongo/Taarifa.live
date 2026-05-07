@@ -5,6 +5,10 @@ import { api } from '../services/api.js';
 import { Btn, Seg, Card, LineChart, Empty, Spinner } from '../components/ui/index.jsx';
 import { IcoDownload, IcoSearch, IcoX } from '../components/ui/Icons.jsx';
 
+function hoursAgo(ts) {
+  return (Date.now() - new Date(ts).getTime()) / 3_600_000;
+}
+
 const SENSORS = [
   { key: 'temperature', label: 'Temperature', unit: '°C',  color: 'var(--c1)' },
   { key: 'humidity',    label: 'Humidity',    unit: '%',   color: 'var(--c2)' },
@@ -40,9 +44,11 @@ export default function DataPage() {
   const [selected, setSelected]   = useState(new Set(['temperature']));
   const [range, setRange]         = useState('24h');
   const [chartType, setChartType] = useState('area');
+  const [viewMode, setViewMode]       = useState('split');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]     = useState('');
   const [exporting, setExporting]   = useState(false);
+  const autoRangeRef = useRef(false);
 
   const { data: devicesData, isLoading: loadingDevices } = useQuery({
     queryKey: ['devices'],
@@ -53,6 +59,27 @@ export default function DataPage() {
   useEffect(() => {
     if (devices.length > 0 && !deviceId) setDeviceId(devices[0]._id);
   }, [devices.length]);
+
+  useEffect(() => { autoRangeRef.current = false; }, [deviceId]);
+
+  const { data: latestData } = useQuery({
+    queryKey: ['latest', deviceId],
+    queryFn:  () => api.getLatest(deviceId),
+    enabled:  !!deviceId,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (!latestData || autoRangeRef.current) return;
+    const ts = latestData.timestamp || latestData.latestTimestamp ||
+      (Array.isArray(latestData) ? latestData[0]?.timestamp : null);
+    if (!ts) return;
+    const h = hoursAgo(ts);
+    autoRangeRef.current = true;
+    if (h <= 24)  setRange('24h');
+    else if (h <= 168) setRange('7d');
+    else          setRange('30d');
+  }, [latestData, deviceId]);
 
   function toggleSensor(key) {
     setSelected(prev => {
@@ -213,11 +240,18 @@ export default function DataPage() {
             </CtrlGroup>
           )}
 
-          <CtrlGroup label="Chart type">
+          <CtrlGroup label="Chart type" divider>
             <Seg value={chartType} onChange={setChartType} options={[
               { value: 'line', label: 'Line' },
               { value: 'area', label: 'Area' },
               { value: 'bar',  label: 'Bar'  },
+            ]} />
+          </CtrlGroup>
+
+          <CtrlGroup label="View">
+            <Seg value={viewMode} onChange={setViewMode} options={[
+              { value: 'split',   label: 'Split'   },
+              { value: 'unified', label: 'Unified' },
             ]} />
           </CtrlGroup>
         </div>
@@ -262,6 +296,13 @@ export default function DataPage() {
       ) : series.length === 0 ? (
         <Card style={{ marginBottom: 16 }}>
           <Empty icon={null} title="No data" hint="No readings for the selected sensors and range." />
+        </Card>
+      ) : viewMode === 'unified' ? (
+        <Card style={{ marginBottom: 16 }}
+          title={`${device?.name ?? ''} — ${series.map(s => s.name).join(', ')}`}
+          sub={`${series.length} sensors · ${range === 'custom' && customFrom ? `${format(new Date(fromIso), 'MMM d')} – ${format(new Date(toIso), 'MMM d')}` : range}`}>
+          <LineChart series={series} height={320}
+            area={chartType === 'area'} bar={chartType === 'bar'} showLegend />
         </Card>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
