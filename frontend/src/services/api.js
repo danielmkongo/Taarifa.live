@@ -4,8 +4,11 @@ function getToken()        { return localStorage.getItem('token'); }
 function getRefreshToken() { return localStorage.getItem('refreshToken'); }
 
 function clearAuth() {
+  const isAdmin = localStorage.getItem('taarifa-role') === 'super_admin';
   localStorage.removeItem('token');
   localStorage.removeItem('refreshToken');
+  localStorage.removeItem('taarifa-role');
+  window._taarifaAuthRedirect = isAdmin ? '/admin' : '/login';
 }
 
 let _refreshing = false;
@@ -55,7 +58,7 @@ async function request(method, path, body, options = {}) {
       });
       if (retry.status === 401) {
         clearAuth();
-        window.location.href = '/login';
+        window.location.href = window._taarifaAuthRedirect || '/login';
         throw new Error('Unauthorized');
       }
       const retryData = retry.status === 204 ? null : await retry.json().catch(() => null);
@@ -63,7 +66,7 @@ async function request(method, path, body, options = {}) {
       return retryData;
     }
     clearAuth();
-    window.location.href = '/login';
+    window.location.href = window._taarifaAuthRedirect || '/login';
     throw new Error('Unauthorized');
   }
 
@@ -203,6 +206,7 @@ export const api = {
   adminListOrgs:       ()       => request('GET',  '/admin/orgs'),
   adminFleet:          (p)      => request('GET',  '/admin/fleet?' + new URLSearchParams(p || {})),
   adminScreens:        ()       => request('GET',  '/admin/screens'),
+  adminAlerts:         (p)      => request('GET',  '/admin/alerts?' + new URLSearchParams(p || {})),
   adminListBroadcasts: ()       => request('GET',  '/admin/broadcasts'),
   adminBroadcast:      (body)   => request('POST', '/admin/broadcast', body),
   adminDeleteBroadcast:(id)     => request('DELETE', `/admin/broadcast/${id}`),

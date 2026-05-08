@@ -8,6 +8,7 @@ export const useAuthStore = create((set) => ({
   setAuth: (user, token, refreshToken) => {
     localStorage.setItem('token', token);
     if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+    if (user?.role) localStorage.setItem('taarifa-role', user.role);
     set({ user, token, refreshToken: refreshToken ?? localStorage.getItem('refreshToken') });
   },
 

@@ -143,6 +143,37 @@ export default async function adminRoutes(fastify) {
     return { ok: true };
   });
 
+  // GET /admin/alerts — all open alerts across all orgs
+  fastify.get('/alerts', { preHandler: superOnly }, async (req) => {
+    const { limit = 50, state = 'open' } = req.query;
+    const events = await col('alertEvents')
+      .find({ state })
+      .sort({ triggeredAt: -1 })
+      .limit(parseInt(limit))
+      .toArray();
+
+    const deviceIds = [...new Set(events.map(e => e.deviceId?.toString()).filter(Boolean))];
+    const devices   = deviceIds.length
+      ? await col('devices').find({ _id: { $in: deviceIds.map(id => new ObjectId(id)) } }, { projection: { name: 1, orgId: 1 } }).toArray()
+      : [];
+    const deviceMap = Object.fromEntries(devices.map(d => [d._id.toString(), d]));
+
+    const orgIds = [...new Set(devices.map(d => d.orgId?.toString()).filter(Boolean))];
+    const orgs   = orgIds.length
+      ? await col('organizations').find({ _id: { $in: orgIds.map(id => new ObjectId(id)) } }, { projection: { name: 1 } }).toArray()
+      : [];
+    const orgMap = Object.fromEntries(orgs.map(o => [o._id.toString(), o.name]));
+
+    return events.map(e => {
+      const dev = deviceMap[e.deviceId?.toString()];
+      return {
+        ...e,
+        deviceName: dev?.name || e.deviceName || '—',
+        orgName: dev?.orgId ? (orgMap[dev.orgId.toString()] || '—') : '—',
+      };
+    });
+  });
+
   // GET /admin/stats — platform-wide summary
   fastify.get('/stats', { preHandler: superOnly }, async () => {
     const [totalOrgs, totalDevices, onlineDevices, alertDevices, totalScreens, onlineScreens, activeBroadcasts] = await Promise.all([

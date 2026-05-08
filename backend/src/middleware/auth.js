@@ -18,6 +18,7 @@ export async function authenticate(req, reply) {
 export function requireRole(...roles) {
   return async (req, reply) => {
     await authenticate(req, reply);
+    if (reply.sent) return;
     if (!roles.includes(req.user.role)) {
       return reply.forbidden('Insufficient permissions');
     }
