@@ -24,6 +24,7 @@ import weatherRoutes from './routes/weather.js';
 import ecalRoutes    from './routes/ecal.js';
 import firmwareRoutes from './routes/firmware.js';
 import energyRoutes  from './routes/energy.js';
+import adminRoutes   from './routes/admin.js';
 import wsRoutes      from './routes/ws.js';
 
 // Null-safe Redis stub — used when Redis is not configured
@@ -108,6 +109,7 @@ export async function buildApp(fastify) {
   fastify.register(ecalRoutes,    { prefix: `${prefix}/ecal` });
   fastify.register(firmwareRoutes, { prefix: `${prefix}/firmware` });
   fastify.register(energyRoutes,  { prefix: `${prefix}/energy` });
+  fastify.register(adminRoutes,   { prefix: `${prefix}/admin` });
   fastify.register(wsRoutes,      { prefix: '/ws' });
 
   fastify.get('/health', { logLevel: 'silent' }, async () => ({ status: 'ok', ts: new Date().toISOString() }));

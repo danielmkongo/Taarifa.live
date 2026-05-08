@@ -43,10 +43,10 @@ async function buildFeed(device) {
   };
 
   const content = await col('ecalContent').find({
-    orgId: device.orgId,
-    isActive: true,
-    ...targetFilter,
-    ...schedFilter,
+    $or: [
+      { orgId: device.orgId, isActive: true, ...targetFilter, ...schedFilter },
+      { isPlatformGlobal: true, isActive: true, ...schedFilter },
+    ],
   }).toArray();
 
   content.sort((a, b) => {

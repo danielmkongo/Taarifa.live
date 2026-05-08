@@ -197,4 +197,13 @@ export const api = {
   getEnergyReadings:   (p)      => request('GET',    '/energy/readings?' + new URLSearchParams(p)),
   getEnergyLatest:     (id)     => request('GET',    `/energy/latest/${id}`),
   getEnergyStats:      (p)      => request('GET',    '/energy/stats?' + new URLSearchParams(p)),
+
+  // Super Admin
+  adminStats:          ()       => request('GET',  '/admin/stats'),
+  adminListOrgs:       ()       => request('GET',  '/admin/orgs'),
+  adminFleet:          (p)      => request('GET',  '/admin/fleet?' + new URLSearchParams(p || {})),
+  adminScreens:        ()       => request('GET',  '/admin/screens'),
+  adminListBroadcasts: ()       => request('GET',  '/admin/broadcasts'),
+  adminBroadcast:      (body)   => request('POST', '/admin/broadcast', body),
+  adminDeleteBroadcast:(id)     => request('DELETE', `/admin/broadcast/${id}`),
 };
