@@ -20,7 +20,7 @@ const PAGE_TITLES = {
   '/alerts':       ['Weather',      'Alerts'],
   '/exports':      ['Weather',      'Reports'],
   '/energy':       ['Energy',       'Overview'],
-  '/ecalendar':    ['e-Calendar',   'Dashboard'],
+  '/ecalendar':    ['eCalendar',   'Dashboard'],
   '/users':        ['Organisation', 'Members'],
   '/settings':     ['Organisation', 'Settings'],
   '/super-admin':  ['Platform',     'Super Admin'],
@@ -127,7 +127,7 @@ export default function Layout() {
   ];
 
   const nav = workspace === 'monitoring' ? monitoringNav : workspace === 'energy' ? energyNav : signageNav;
-  const workspaceLabel = { monitoring: 'Weather', energy: 'Energy', signage: 'e-Calendar' }[workspace];
+  const workspaceLabel = { monitoring: 'Weather', energy: 'Energy', signage: 'eCalendar' }[workspace];
 
   // Topbar breadcrumb
   let crumbs = PAGE_TITLES[location.pathname] || ['Weather', 'Overview'];
@@ -135,7 +135,7 @@ export default function Layout() {
     crumbs = ['', 'Workspaces'];
   } else if (isSignagePath(location.pathname)) {
     const tabLabels = { overview: 'Dashboard', content: 'Content', schedule: 'Schedule', screens: 'Screens' };
-    crumbs = ['e-Calendar', tabLabels[currentTab] || 'Dashboard'];
+    crumbs = ['eCalendar', tabLabels[currentTab] || 'Dashboard'];
   } else if (isEnergyPath(location.pathname)) {
     const tabLabels = { overview: 'Overview', devices: 'Devices', systems: 'Systems', data: 'Data' };
     crumbs = ['Energy', tabLabels[currentEnergyTab] || 'Overview'];

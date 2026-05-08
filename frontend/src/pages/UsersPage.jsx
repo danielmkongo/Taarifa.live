@@ -7,7 +7,7 @@ import { IcoPlus, IcoMore, IcoX, IcoCheck, IcoUsers, IcoLayers } from '../compon
 
 const ROLES = ['viewer', 'manager', 'org_admin'];
 const ALL_MODULES = ['weather', 'energy', 'ecalendar'];
-const MODULE_LABELS = { weather: 'Weather', energy: 'Energy', ecalendar: 'e-Calendar' };
+const MODULE_LABELS = { weather: 'Weather', energy: 'Energy', ecalendar: 'eCalendar' };
 
 function InviteModal({ onClose, onSaved }) {
   const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'viewer' });

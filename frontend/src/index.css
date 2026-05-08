@@ -669,3 +669,20 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 0; }
   .modal__body { padding: 16px; }
   .modal__head { padding: 14px 16px; }
 }
+
+/* ── Weather banner ─────────────────────────────────────────────────────────── */
+@keyframes wx-scene-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wx-cloud-drift { from { transform: translateX(0); } to { transform: translateX(170px); } }
+@keyframes wx-cloud-drift-slow { from { transform: translateX(0); } to { transform: translateX(100px); } }
+@keyframes wx-sun-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes wx-rain-fall {
+  0%   { transform: translateY(0) rotate(8deg); opacity: 0.65; }
+  100% { transform: translateY(210px) rotate(8deg); opacity: 0.12; }
+}
+@keyframes wx-lightning {
+  0%, 73%, 100% { opacity: 0; }
+  74%, 76%      { opacity: 1; }
+  75%            { opacity: 0.08; }
+  77%, 79%      { opacity: 1; }
+  78%            { opacity: 0.08; }
+}

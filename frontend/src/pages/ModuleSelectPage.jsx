@@ -39,7 +39,7 @@ const WORKSPACES = [
   },
   {
     key: 'ecalendar',
-    label: 'e-Calendar',
+    label: 'eCalendar',
     sub: 'Digital Signage',
     desc: 'Content scheduling, campaign management, and screen distribution.',
     Icon: IcoMonitor,

@@ -40,7 +40,7 @@ function LivePreviewCards() {
       <div style={{ ...glassCard, gridColumn:'1 / -1' }}>
         <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 13px 8px', borderBottom:'1px solid rgba(255,255,255,0.06)', fontSize:11.5, color:'rgba(255,255,255,0.5)' }}>
           <span style={{ width:6,height:6,borderRadius:'50%',background:'#818cf8',boxShadow:'0 0 6px #818cf880',flexShrink:0 }} />
-          <span style={{ flex:1 }}>e-Calendar · Main Lobby Screen</span>
+          <span style={{ flex:1 }}>eCalendar · Main Lobby Screen</span>
           <span style={{ fontSize:9,fontWeight:700,letterSpacing:'0.08em',color:'#818cf8',background:'rgba(129,140,248,0.12)',border:'1px solid rgba(129,140,248,0.25)',padding:'2px 6px',borderRadius:4 }}>BROADCASTING</span>
         </div>
         <div style={{ padding:'9px 13px 11px', fontSize:12.5, color:'rgba(255,255,255,0.5)' }}>

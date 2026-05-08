@@ -1024,7 +1024,7 @@ export default function ECalendarPage() {
   }
 
   const PAGE_META = {
-    overview: { title: 'e-Calendar',      sub: 'Display network overview — screens, content, and live status.' },
+    overview: { title: 'eCalendar',       sub: 'Display network overview — screens, content, and live status.' },
     content:  { title: 'Content library', sub: 'Reusable content items scheduled to display devices.' },
     schedule: { title: 'Schedule',        sub: 'Prioritised content distribution timeline.' },
     screens:  { title: 'Screens',         sub: 'Registered display devices and real-time heartbeat status.' },

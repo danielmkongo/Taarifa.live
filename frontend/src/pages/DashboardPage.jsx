@@ -18,6 +18,187 @@ function genSeries(n, base, noise, drift = 0, seed = 1) {
   return Array.from({ length: n }, (_, i) => { v += (r() - 0.5) * noise + drift / n; return { t: i, v: +v.toFixed(2) }; });
 }
 
+// ── Weather banner ─────────────────────────────────────────────────────────────
+const WX_STATES = [
+  { key: 'sunny',  label: 'Sunny',         temp: '32°C', bg: '#0369a1 0%, #0ea5e9 50%, #38bdf8 100%' },
+  { key: 'partly', label: 'Partly Cloudy', temp: '28°C', bg: '#1d4ed8 0%, #3b82f6 50%, #60a5fa 100%' },
+  { key: 'cloudy', label: 'Overcast',      temp: '23°C', bg: '#374151 0%, #6b7280 55%, #9ca3af 100%' },
+  { key: 'rainy',  label: 'Rainy',         temp: '20°C', bg: '#1e293b 0%, #334155 50%, #475569 100%' },
+  { key: 'stormy', label: 'Thunderstorm',  temp: '17°C', bg: '#020617 0%, #0f172a 40%, #1f2937 100%' },
+];
+
+function WxCloud({ x, y, w = 120, bh = 42, color = 'rgba(255,255,255,0.85)' }) {
+  const r = bh / 2;
+  return (
+    <g>
+      <ellipse cx={x + w / 2} cy={y + r * 1.1} rx={w / 2} ry={r * 0.68} fill={color} />
+      <circle cx={x + w * 0.25} cy={y + r * 0.72} r={r * 0.92} fill={color} />
+      <circle cx={x + w * 0.52} cy={y + r * 0.38} r={r} fill={color} />
+      <circle cx={x + w * 0.78} cy={y + r * 0.65} r={r * 0.78} fill={color} />
+    </g>
+  );
+}
+
+function WxScene({ state }) {
+  return (
+    <svg viewBox="0 0 560 155" width="100%" height="100%"
+      preserveAspectRatio="xMidYMid slice"
+      style={{ display: 'block', animation: 'wx-scene-in 0.7s ease' }}>
+
+      {state === 'sunny' && <>
+        <circle cx={460} cy={48} r={78} fill="#fde68a" opacity="0.12" />
+        <circle cx={460} cy={48} r={56} fill="#fbbf24" opacity="0.16" />
+        <g style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'wx-sun-spin 28s linear infinite' }}>
+          <g transform="translate(460,48)">
+            {Array.from({ length: 12 }, (_, i) => {
+              const a = (i / 12) * Math.PI * 2;
+              return <line key={i} x1={Math.cos(a) * 40} y1={Math.sin(a) * 40} x2={Math.cos(a) * 60} y2={Math.sin(a) * 60}
+                stroke="#fde68a" strokeWidth="4" strokeLinecap="round" opacity="0.85" />;
+            })}
+          </g>
+        </g>
+        <circle cx={460} cy={48} r={37} fill="#fbbf24" />
+        <circle cx={460} cy={48} r={24} fill="#fef3c7" opacity="0.55" />
+        <g style={{ animation: 'wx-cloud-drift 22s linear infinite' }}>
+          <WxCloud x={-90} y={90} w={140} bh={38} color="rgba(255,255,255,0.22)" />
+        </g>
+        <g style={{ animation: 'wx-cloud-drift-slow 34s 4s linear infinite' }}>
+          <WxCloud x={200} y={105} w={110} bh={30} color="rgba(255,255,255,0.16)" />
+        </g>
+      </>}
+
+      {state === 'partly' && <>
+        <circle cx={430} cy={38} r={55} fill="#fbbf24" opacity="0.18" />
+        <g style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'wx-sun-spin 32s linear infinite' }}>
+          <g transform="translate(430,38)">
+            {Array.from({ length: 10 }, (_, i) => {
+              const a = (i / 10) * Math.PI * 2;
+              return <line key={i} x1={Math.cos(a) * 32} y1={Math.sin(a) * 32} x2={Math.cos(a) * 50} y2={Math.sin(a) * 50}
+                stroke="#fde68a" strokeWidth="3.5" strokeLinecap="round" opacity="0.75" />;
+            })}
+          </g>
+        </g>
+        <circle cx={430} cy={38} r={30} fill="#fbbf24" />
+        <g style={{ animation: 'wx-cloud-drift 15s linear infinite' }}>
+          <WxCloud x={330} y={8} w={195} bh={62} />
+        </g>
+        <g style={{ animation: 'wx-cloud-drift-slow 26s linear infinite' }}>
+          <WxCloud x={70} y={82} w={150} bh={48} color="rgba(255,255,255,0.78)" />
+        </g>
+        <g style={{ animation: 'wx-cloud-drift 34s 7s linear infinite' }}>
+          <WxCloud x={-70} y={45} w={115} bh={38} color="rgba(255,255,255,0.55)" />
+        </g>
+      </>}
+
+      {state === 'cloudy' && <>
+        <WxCloud x={-35} y={2} w={230} bh={72} color="rgba(255,255,255,0.18)" />
+        <g style={{ animation: 'wx-cloud-drift 30s linear infinite' }}>
+          <WxCloud x={175} y={-5} w={215} bh={78} color="rgba(255,255,255,0.15)" />
+        </g>
+        <g style={{ animation: 'wx-cloud-drift-slow 20s linear infinite' }}>
+          <WxCloud x={365} y={5} w={195} bh={68} color="rgba(255,255,255,0.20)" />
+        </g>
+        <g style={{ animation: 'wx-cloud-drift 24s 6s linear infinite' }}>
+          <WxCloud x={55} y={78} w={260} bh={68} color="rgba(255,255,255,0.12)" />
+        </g>
+        <g style={{ animation: 'wx-cloud-drift-slow 36s 12s linear infinite' }}>
+          <WxCloud x={305} y={72} w={230} bh={62} color="rgba(255,255,255,0.10)" />
+        </g>
+      </>}
+
+      {state === 'rainy' && <>
+        <WxCloud x={-45} y={-18} w={250} bh={82} color="rgba(100,116,139,0.72)" />
+        <g style={{ animation: 'wx-cloud-drift-slow 22s linear infinite' }}>
+          <WxCloud x={205} y={-22} w={290} bh={92} color="rgba(71,85,105,0.80)" />
+        </g>
+        <g style={{ animation: 'wx-cloud-drift 30s linear infinite' }}>
+          <WxCloud x={460} y={-12} w={185} bh={72} color="rgba(100,116,139,0.62)" />
+        </g>
+      </>}
+
+      {state === 'stormy' && <>
+        <WxCloud x={-55} y={-28} w={300} bh={105} color="rgba(55,65,81,0.88)" />
+        <g style={{ animation: 'wx-cloud-drift-slow 15s linear infinite' }}>
+          <WxCloud x={250} y={-32} w={350} bh={112} color="rgba(31,41,55,0.92)" />
+        </g>
+        <g style={{ animation: 'wx-cloud-drift 24s linear infinite' }}>
+          <WxCloud x={545} y={-18} w={185} bh={82} color="rgba(55,65,81,0.78)" />
+        </g>
+        <g style={{ animation: 'wx-lightning 5s 0.8s ease-in-out infinite' }}>
+          <path d="M215 32 L196 68 L209 68 L188 112 L226 65 L211 65 Z" fill="#fef9c3" />
+        </g>
+        <g style={{ animation: 'wx-lightning 5s 2.8s ease-in-out infinite' }}>
+          <path d="M375 22 L354 62 L368 62 L345 108 L388 58 L372 58 Z" fill="#fef9c3" />
+        </g>
+      </>}
+
+    </svg>
+  );
+}
+
+function WxRainLayer({ heavy = false }) {
+  const count = heavy ? 55 : 32;
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          left: `${((i * 37 + 11) % 110) - 5}%`,
+          top: '-20px',
+          width: '1.5px',
+          height: `${10 + (i % 4) * 5}px`,
+          background: heavy ? 'rgba(147,197,253,0.55)' : 'rgba(186,230,253,0.50)',
+          borderRadius: 1,
+          transform: 'rotate(8deg)',
+          animation: `wx-rain-fall ${0.55 + (i % 5) * 0.12}s ${(i * 0.13) % 1.6}s linear infinite`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function WeatherBanner() {
+  const [wxIdx, setWxIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setWxIdx(i => (i + 1) % WX_STATES.length), 9000);
+    return () => clearInterval(id);
+  }, []);
+  const wx = WX_STATES[wxIdx];
+  return (
+    <div style={{
+      position: 'relative', height: 155, borderRadius: 16, overflow: 'hidden', marginBottom: 20,
+      background: `linear-gradient(160deg, ${wx.bg})`,
+      transition: 'background 2.5s ease',
+    }}>
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <WxScene state={wx.key} key={wx.key} />
+      </div>
+      {(wx.key === 'rainy' || wx.key === 'stormy') && <WxRainLayer heavy={wx.key === 'stormy'} />}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: 'linear-gradient(to right, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.08) 55%, transparent 85%)',
+      }} />
+      <div style={{ position: 'absolute', bottom: 18, left: 22, zIndex: 2 }}>
+        <div style={{ fontSize: 30, fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1, textShadow: '0 2px 14px rgba(0,0,0,0.35)' }}>
+          {wx.temp} · {wx.label}
+        </div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.58)', marginTop: 5, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          Dar es Salaam · Live conditions
+        </div>
+      </div>
+      <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', gap: 5, zIndex: 2 }}>
+        {WX_STATES.map((_, i) => (
+          <div key={i} style={{
+            width: i === wxIdx ? 22 : 5, height: 5, borderRadius: 3,
+            background: i === wxIdx ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.22)',
+            transition: 'all 0.5s ease',
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function KpiCard({ label, value, sub, trend, trendKind = 'neutral', spark, sparkColor, dotColor }) {
   return (
     <div className="card" style={{ padding: '18px 20px', overflow: 'hidden', position: 'relative' }}>
@@ -194,6 +375,8 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      <WeatherBanner />
 
       <div className="grid grid-cols-4" style={{ marginBottom: 16 }}>
         <KpiCard label="Devices online" value={total > 0 ? `${online}` : '—'}
