@@ -75,7 +75,7 @@ export default function LoginPage() {
     try {
       const data = await api.login(form);
       setAuth(data.user, data.token, data.refreshToken);
-      navigate('/modules');
+      navigate(data.user?.role === 'super_admin' ? '/super-admin' : '/modules');
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {

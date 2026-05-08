@@ -211,17 +211,6 @@ export default function Layout() {
             </div>
           )}
 
-          {role === 'super_admin' && (
-            <div className="nav__section">
-              <div className="nav__heading">Platform</div>
-              <a className={`nav__item ${location.pathname === '/super-admin' ? 'active' : ''}`}
-                href="/super-admin"
-                onClick={e => { e.preventDefault(); navigate('/super-admin'); }}>
-                <IcoShield className="nav__icon" size={15} />
-                <span>Super Admin</span>
-              </a>
-            </div>
-          )}
         </nav>
 
         {/* Workspace switcher — styled as a distinct chip */}
