@@ -19,13 +19,43 @@ function genSeries(n, base, noise, drift = 0, seed = 1) {
 }
 
 // ── Weather banner ─────────────────────────────────────────────────────────────
-const WX_STATES = [
-  { key: 'sunny',  label: 'Sunny',         temp: '32°C', bg: '#0369a1 0%, #0ea5e9 50%, #38bdf8 100%' },
-  { key: 'partly', label: 'Partly Cloudy', temp: '28°C', bg: '#1d4ed8 0%, #3b82f6 50%, #60a5fa 100%' },
-  { key: 'cloudy', label: 'Overcast',      temp: '23°C', bg: '#374151 0%, #6b7280 55%, #9ca3af 100%' },
-  { key: 'rainy',  label: 'Rainy',         temp: '20°C', bg: '#1e293b 0%, #334155 50%, #475569 100%' },
-  { key: 'stormy', label: 'Thunderstorm',  temp: '17°C', bg: '#020617 0%, #0f172a 40%, #1f2937 100%' },
+const WX_CITIES = [
+  { name: 'Dar es Salaam', lat: -6.7924, lon: 39.2083 },
+  { name: 'Zanzibar',      lat: -6.1659, lon: 39.2026 },
+  { name: 'Arusha',        lat: -3.3869, lon: 36.6830 },
+  { name: 'Mwanza',        lat: -2.5164, lon: 32.9175 },
+  { name: 'Dodoma',        lat: -6.1722, lon: 35.7395 },
+  { name: 'Moshi',         lat: -3.3500, lon: 37.3333 },
 ];
+
+const WX_GRADIENTS = {
+  sunny:  '#0369a1 0%, #0ea5e9 50%, #38bdf8 100%',
+  partly: '#1d4ed8 0%, #3b82f6 50%, #60a5fa 100%',
+  cloudy: '#374151 0%, #6b7280 55%, #9ca3af 100%',
+  rainy:  '#1e293b 0%, #334155 50%, #475569 100%',
+  stormy: '#020617 0%, #0f172a 40%, #1f2937 100%',
+};
+
+function wmoToState(code) {
+  if (code === 0) return 'sunny';
+  if (code <= 2) return 'partly';
+  if (code <= 3 || (code >= 45 && code <= 48)) return 'cloudy';
+  if (code >= 95) return 'stormy';
+  return 'rainy';
+}
+
+function wmoToLabel(code) {
+  if (code === 0) return 'Sunny';
+  if (code === 1) return 'Mainly Clear';
+  if (code === 2) return 'Partly Cloudy';
+  if (code === 3) return 'Overcast';
+  if (code >= 45 && code <= 48) return 'Foggy';
+  if (code >= 51 && code <= 55) return 'Drizzle';
+  if (code >= 61 && code <= 65) return 'Rain';
+  if (code >= 80 && code <= 82) return 'Rain Showers';
+  if (code >= 95) return 'Thunderstorm';
+  return 'Cloudy';
+}
 
 function WxCloud({ x, y, w = 120, bh = 42, color = 'rgba(255,255,255,0.85)' }) {
   const r = bh / 2;
@@ -158,39 +188,65 @@ function WxRainLayer({ heavy = false }) {
 }
 
 function WeatherBanner() {
-  const [wxIdx, setWxIdx] = useState(0);
+  const [cityIdx, setCityIdx] = useState(0);
+
+  const { data: cityWeather } = useQuery({
+    queryKey: ['wx-tanzania'],
+    queryFn: async () => {
+      const results = await Promise.all(WX_CITIES.map(async (city) => {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,weather_code&timezone=Africa%2FDar_es_Salaam&forecast_days=1`;
+        const res = await fetch(url);
+        const d = await res.json();
+        return {
+          name: city.name,
+          temp: Math.round(d.current?.temperature_2m ?? 28),
+          code: d.current?.weather_code ?? 0,
+        };
+      }));
+      return results;
+    },
+    staleTime: 10 * 60 * 1000,
+    refetchInterval: 15 * 60 * 1000,
+  });
+
   useEffect(() => {
-    const id = setInterval(() => setWxIdx(i => (i + 1) % WX_STATES.length), 9000);
+    const id = setInterval(() => setCityIdx(i => (i + 1) % WX_CITIES.length), 9000);
     return () => clearInterval(id);
   }, []);
-  const wx = WX_STATES[wxIdx];
+
+  const live = cityWeather?.[cityIdx];
+  const state = live ? wmoToState(live.code) : 'sunny';
+  const temp  = live ? `${live.temp}°C` : '—';
+  const label = live ? wmoToLabel(live.code) : '…';
+  const city  = live?.name ?? WX_CITIES[cityIdx].name;
+
   return (
     <div style={{
       position: 'relative', height: 155, borderRadius: 16, overflow: 'hidden', marginBottom: 20,
-      background: `linear-gradient(160deg, ${wx.bg})`,
+      background: `linear-gradient(160deg, ${WX_GRADIENTS[state]})`,
       transition: 'background 2.5s ease',
     }}>
       <div style={{ position: 'absolute', inset: 0 }}>
-        <WxScene state={wx.key} key={wx.key} />
+        <WxScene state={state} key={`${cityIdx}-${state}`} />
       </div>
-      {(wx.key === 'rainy' || wx.key === 'stormy') && <WxRainLayer heavy={wx.key === 'stormy'} />}
+      {(state === 'rainy' || state === 'stormy') && <WxRainLayer heavy={state === 'stormy'} />}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         background: 'linear-gradient(to right, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.08) 55%, transparent 85%)',
       }} />
       <div style={{ position: 'absolute', bottom: 18, left: 22, zIndex: 2 }}>
         <div style={{ fontSize: 30, fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1, textShadow: '0 2px 14px rgba(0,0,0,0.35)' }}>
-          {wx.temp} · {wx.label}
+          {temp} · {label}
         </div>
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.58)', marginTop: 5, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-          Dar es Salaam · Live conditions
+          {city} · Live conditions
         </div>
       </div>
       <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', gap: 5, zIndex: 2 }}>
-        {WX_STATES.map((_, i) => (
+        {WX_CITIES.map((_, i) => (
           <div key={i} style={{
-            width: i === wxIdx ? 22 : 5, height: 5, borderRadius: 3,
-            background: i === wxIdx ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.22)',
+            width: i === cityIdx ? 22 : 5, height: 5, borderRadius: 3,
+            background: i === cityIdx ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.22)',
             transition: 'all 0.5s ease',
           }} />
         ))}
