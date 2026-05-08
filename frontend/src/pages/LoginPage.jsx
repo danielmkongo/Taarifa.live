@@ -125,7 +125,7 @@ export default function LoginPage() {
         <div className="login-form-card fade-in">
 
           <div style={{ marginBottom: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <img src="/logo.jpg" alt="GECOL Logo" style={{ height: 270, maxWidth: '100%', objectFit: 'contain', borderRadius: 8, marginBottom: 12 }} />
+            <img src="/logo.jpg" alt="GECOL Logo" style={{ height: 360, maxWidth: '100%', objectFit: 'contain', borderRadius: 8, marginBottom: 12 }} />
             <div style={{ fontSize: 11, color: 'var(--fg-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Powered by GECOL</div>
           </div>
 
