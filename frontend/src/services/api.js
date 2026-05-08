@@ -156,6 +156,10 @@ export const api = {
   },
   getDeviceReadings: (deviceId, params) => request('GET', `/data/readings?deviceId=${deviceId}&` + new URLSearchParams(params)),
 
+  // E-Calendar — market (fuel prices)
+  getEcalMarket:      ()       => request('GET',   '/ecal/market'),
+  updateEcalMarket:   (body)   => request('PATCH', '/ecal/market', body),
+
   // E-Calendar — groups
   getEcalStats:       ()       => request('GET',    '/ecal/stats'),
   listEcalGroups:     ()       => request('GET',    '/ecal/groups'),

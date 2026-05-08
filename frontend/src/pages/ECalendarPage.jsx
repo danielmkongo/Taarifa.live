@@ -773,7 +773,81 @@ function OverviewTab({ stats, content, screens, onNewContent }) {
           )}
         </Card>
       </div>
+      <div style={{ marginTop: 16 }}>
+        <FuelPricesCard />
+      </div>
     </>
+  );
+}
+
+// ─── Fuel prices card ────────────────────────────────────────────────────────────
+function FuelPricesCard() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ diesel: '', petrol: '' });
+
+  const { data } = useQuery({
+    queryKey: ['ecal-market'],
+    queryFn: api.getEcalMarket,
+    staleTime: 60_000,
+  });
+
+  const save = useMutation({
+    mutationFn: api.updateEcalMarket,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ecal-market'] }); setEditing(false); },
+  });
+
+  function startEdit() {
+    setForm({ diesel: data?.diesel ?? '', petrol: data?.petrol ?? '' });
+    setEditing(true);
+  }
+
+  const FUELS = [
+    { key: 'diesel', label: 'Diesel', color: '#f59e0b' },
+    { key: 'petrol', label: 'Petrol', color: '#3b82f6' },
+  ];
+
+  return (
+    <Card title="Fuel Prices" sub="Broadcast to screens via heartbeat every 60 s"
+      actions={editing
+        ? <div style={{ display: 'flex', gap: 6 }}>
+            <Btn kind="ghost" size="sm" onClick={() => setEditing(false)}>Cancel</Btn>
+            <Btn kind="primary" size="sm" onClick={() => save.mutate(form)} disabled={save.isPending}>Save</Btn>
+          </div>
+        : <Btn kind="ghost" size="sm" onClick={startEdit}>Edit prices</Btn>
+      }>
+      <div style={{ display: 'flex', gap: 0 }}>
+        {FUELS.map(({ key, label, color }, i) => (
+          <div key={key} style={{ flex: 1, padding: '10px 0', borderRight: i === 0 ? '1px solid var(--border)' : 'none', paddingRight: i === 0 ? 24 : 0, paddingLeft: i === 1 ? 24 : 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-subtle)', marginBottom: 8 }}>
+              {label}
+            </div>
+            {editing ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, color: 'var(--fg-muted)', flexShrink: 0 }}>TZS</span>
+                <input type="number" className="input" style={{ height: 36, fontSize: 14, flex: 1 }}
+                  value={form[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder="0" min="0" />
+                <span style={{ fontSize: 12, color: 'var(--fg-muted)', flexShrink: 0 }}>/L</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ fontSize: 28, fontWeight: 900, color, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  {data?.[key] != null ? Number(data[key]).toLocaleString() : '—'}
+                </span>
+                {data?.[key] != null && (
+                  <span style={{ fontSize: 12, color: 'var(--fg-muted)', fontWeight: 500 }}>TZS/L</span>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 12, fontSize: 11.5, color: 'var(--fg-subtle)', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+        Devices receive updated prices on their next heartbeat. Changes appear on-screen within 60 seconds.
+      </div>
+    </Card>
   );
 }
 

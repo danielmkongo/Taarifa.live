@@ -22,6 +22,12 @@ async function resolveDevice(apiKey) {
   return device;
 }
 
+async function getMarket(orgId) {
+  const doc = await col('orgSettings').findOne({ orgId, key: 'fuelPrices' });
+  if (!doc) return null;
+  return { diesel: doc.diesel ?? null, petrol: doc.petrol ?? null };
+}
+
 async function buildFeed(device) {
   const now = new Date();
   const groupId = device.groupId;
@@ -257,15 +263,31 @@ export default async function ecalRoutes(fastify) {
     return { ok: true };
   });
 
+  // ── Fuel prices (market) ──────────────────────────────────────────────────
+  fastify.get('/market', { preHandler: auth }, async (req) => {
+    const doc = await col('orgSettings').findOne({ orgId: req.user.orgId, key: 'fuelPrices' });
+    return { diesel: doc?.diesel ?? null, petrol: doc?.petrol ?? null };
+  });
+
+  fastify.patch('/market', { preHandler: auth }, async (req) => {
+    const { diesel, petrol } = req.body;
+    await col('orgSettings').updateOne(
+      { orgId: req.user.orgId, key: 'fuelPrices' },
+      { $set: { orgId: req.user.orgId, key: 'fuelPrices', diesel: Number(diesel), petrol: Number(petrol), updatedAt: new Date() } },
+      { upsert: true }
+    );
+    return { ok: true };
+  });
+
   // ── Device feed (called by display hardware, API key auth) ─────────────────
   fastify.get('/device/:id/feed', async (req, reply) => {
     const apiKey = req.headers['x-api-key'];
     const device = await resolveDevice(apiKey);
     if (!device || device._id.toString() !== req.params.id) return reply.unauthorized();
 
-    const feed = await buildFeed(device);
-    const ota  = device.otaPending ? { version: device.otaVersion, fileUrl: device.otaUrl } : null;
-    return { feed, ota, syncedAt: new Date().toISOString(), deviceId: device._id };
+    const [feed, market] = await Promise.all([buildFeed(device), getMarket(device.orgId)]);
+    const ota = device.otaPending ? { version: device.otaVersion, fileUrl: device.otaUrl } : null;
+    return { feed, ota, market, syncedAt: new Date().toISOString(), deviceId: device._id };
   });
 
   // ── Device heartbeat (called by display hardware) ─────────────────────────
@@ -288,13 +310,13 @@ export default async function ecalRoutes(fastify) {
     }
 
     await col('ecalDevices').updateOne({ _id: device._id }, { $set: update });
-    const feed = await buildFeed(device);
+    const [feed, market] = await Promise.all([buildFeed(device), getMarket(device.orgId)]);
 
     const ota = device.otaPending && !(firmware && firmware === device.otaVersion)
       ? { version: device.otaVersion, fileUrl: device.otaUrl }
       : null;
 
-    return { ok: true, feed, ota, syncedAt: new Date().toISOString() };
+    return { ok: true, feed, ota, market, syncedAt: new Date().toISOString() };
   });
 
   // ── Legacy sync endpoint ───────────────────────────────────────────────────
