@@ -11,6 +11,29 @@ import {
 
 // ── Micro helpers ──────────────────────────────────────────────────────────────
 
+function ApiError({ error, onRetry }) {
+  const msg = error?.message || String(error);
+  const is404 = msg.includes('404');
+  const is403 = msg.includes('403') || msg.includes('Forbidden') || msg.includes('permission');
+  return (
+    <div style={{ padding: '20px 24px', borderRadius: 10, background: 'var(--danger-soft)', border: '1px solid color-mix(in oklch, var(--danger) 25%, var(--border))', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontWeight: 700, color: 'var(--danger)', fontSize: 14 }}>
+        {is404 ? 'API routes not found (404)' : is403 ? 'Access denied (403)' : `Request failed — ${msg}`}
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.6 }}>
+        {is404 && 'The backend admin routes are not registered. The backend server needs to be restarted to load the new /admin routes.'}
+        {is403 && 'Your account does not have the super_admin role, or the role check is failing.'}
+        {!is404 && !is403 && 'Check the browser Network tab and backend logs for details.'}
+      </div>
+      {onRetry && (
+        <button onClick={onRetry} style={{ alignSelf: 'flex-start', marginTop: 4, padding: '6px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SearchBox({ value, onChange, placeholder, style }) {
   return (
     <div className="search" style={{ flex: 1, minWidth: 200, ...style }}>
@@ -177,10 +200,11 @@ function OrgCard({ org }) {
 function OrgsTab() {
   const [search, setSearch] = useState('');
   const [sort, setSort]     = useState('alerts');
-  const { data: orgs = [], isLoading, refetch, isFetching } = useQuery({
+  const { data: orgs = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['admin-orgs'],
     queryFn: api.adminListOrgs,
     staleTime: 30_000,
+    retry: 1,
   });
 
   const filtered = orgs
@@ -209,6 +233,8 @@ function OrgsTab() {
 
       {isLoading ? (
         <div style={{ height: 300, display: 'grid', placeItems: 'center' }}><Spinner /></div>
+      ) : isError ? (
+        <ApiError error={error} onRetry={refetch} />
       ) : filtered.length === 0 ? (
         <Empty icon={null} title="No organizations" hint="None match your search." />
       ) : (
@@ -227,11 +253,11 @@ function FleetTab() {
   const [statusFilter, setStatus]   = useState('all');
   const [view, setView]             = useState('iot');
 
-  const { data: iotDevices = [], isLoading: loadingIot } = useQuery({
-    queryKey: ['admin-fleet'], queryFn: () => api.adminFleet({ limit: 500 }), staleTime: 30_000,
+  const { data: iotDevices = [], isLoading: loadingIot, isError: iotError, error: iotErr, refetch: refetchIot } = useQuery({
+    queryKey: ['admin-fleet'], queryFn: () => api.adminFleet({ limit: 500 }), staleTime: 30_000, retry: 1,
   });
-  const { data: screens = [], isLoading: loadingScreens } = useQuery({
-    queryKey: ['admin-screens'], queryFn: api.adminScreens, staleTime: 30_000,
+  const { data: screens = [], isLoading: loadingScreens, isError: scrError, error: scrErr, refetch: refetchScr } = useQuery({
+    queryKey: ['admin-screens'], queryFn: api.adminScreens, staleTime: 30_000, retry: 1,
   });
 
   const devices   = view === 'iot' ? iotDevices : screens;
@@ -291,6 +317,8 @@ function FleetTab() {
 
         {isLoading ? (
           <div style={{ height: 200, display: 'grid', placeItems: 'center' }}><Spinner /></div>
+        ) : (iotError || scrError) ? (
+          <ApiError error={iotErr || scrErr} onRetry={view === 'iot' ? refetchIot : refetchScr} />
         ) : filtered.length === 0 ? (
           <Empty icon={null} title="No results" hint="No devices match the current filters." />
         ) : (

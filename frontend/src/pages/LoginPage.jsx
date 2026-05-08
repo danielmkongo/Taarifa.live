@@ -124,14 +124,9 @@ export default function LoginPage() {
       <div className="login-form-side">
         <div className="login-form-card fade-in">
 
-          <div className="auth-logo" style={{ marginBottom: 28 }}>
-            <div className="auth-logo__mark">
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 20, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.05em', lineHeight: 1, userSelect: 'none' }}>T</span>
-            </div>
-            <div className="auth-logo__text">
-              <div className="auth-logo__name">Taarifa <span style={{ fontWeight: 400, color: 'var(--fg-muted)' }}>Live</span></div>
-              <div className="auth-logo__sub">Monitor · Manage · Act</div>
-            </div>
+          <div style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <img src="/logo.jpg" alt="Logo" style={{ height: 52, maxWidth: 220, objectFit: 'contain', borderRadius: 6, marginBottom: 8 }} />
+            <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', fontWeight: 500 }}>Monitor · Manage · Act</div>
           </div>
 
           <div style={{ marginBottom: 28 }}>

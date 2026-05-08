@@ -166,11 +166,9 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className={`app__sidebar${sidebarOpen ? ' app__sidebar--open' : ''}`}>
         <button className="brand" onClick={() => navigate('/modules')} style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-          <div className="brand__mark">
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.05em', lineHeight: 1, userSelect: 'none' }}>T</span>
-          </div>
+          <img src="/logo.jpg" alt="Logo" style={{ height: 28, maxWidth: 110, objectFit: 'contain', borderRadius: 4, flexShrink: 0 }} />
           <div className="brand__text">
-            <div className="brand__name">Taarifa<span className="brand__live"> Live</span></div>
+            <div className="brand__name">Dashboard</div>
           </div>
         </button>
 

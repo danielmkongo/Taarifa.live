@@ -282,15 +282,8 @@ export default function ModuleSelectPage() {
             <IcoChevLeft size={15} />
           </button>
           <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
-          <div style={{
-            width: 30, height: 30, borderRadius: 7,
-            background: 'var(--accent-soft)',
-            border: '1px solid color-mix(in oklch, var(--accent) 22%, var(--border))',
-            display: 'grid', placeItems: 'center',
-          }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.05em', lineHeight: 1, userSelect: 'none' }}>T</span>
-          </div>
-          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--fg)' }}>Taarifa <span style={{ fontWeight: 400, fontSize: 13.5, color: 'var(--fg-muted)' }}>Live</span></span>
+          <img src="/logo.jpg" alt="Logo" style={{ height: 26, maxWidth: 100, objectFit: 'contain', borderRadius: 4 }} />
+          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--fg)' }}>Dashboard</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, color: 'var(--fg-muted)' }}>{user?.fullName}</span>
@@ -308,12 +301,12 @@ export default function ModuleSelectPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px 60px' }}>
 
         <div style={{ textAlign: 'center', marginBottom: 48, maxWidth: 520 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-subtle)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          <div style={{ fontSize: 48, fontWeight: 900, letterSpacing: '-0.05em', color: 'var(--fg)', lineHeight: 1, marginBottom: 16 }}>
+            DASHBOARD
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-subtle)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             Welcome back{user?.fullName ? `, ${user.fullName.split(' ')[0]}` : ''}
           </div>
-          <h1 style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.035em', color: 'var(--fg)', margin: 0, lineHeight: 1.15 }}>
-            Choose your workspace
-          </h1>
           <p style={{ fontSize: 14.5, color: 'var(--fg-muted)', marginTop: 10, lineHeight: 1.65, margin: '10px 0 0' }}>
             Select a module to continue. You can switch at any time.
           </p>
