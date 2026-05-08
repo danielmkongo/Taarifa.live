@@ -25,7 +25,8 @@ const WX_CITIES = [
   { name: 'Arusha',        lat: -3.3869, lon: 36.6830 },
   { name: 'Mwanza',        lat: -2.5164, lon: 32.9175 },
   { name: 'Dodoma',        lat: -6.1722, lon: 35.7395 },
-  { name: 'Moshi',         lat: -3.3500, lon: 37.3333 },
+  { name: 'Kilimanjaro',   lat: -3.0674, lon: 37.3556 },
+  { name: 'Mbeya',         lat: -8.9000, lon: 33.4600 },
 ];
 
 const WX_GRADIENTS = {
